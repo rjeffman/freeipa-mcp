@@ -201,14 +201,14 @@ class IPAClient:
                 auth=HTTPSPNEGOAuth(opportunistic_auth=True),
                 verify=self._verify_ssl,
             )
-        except requests.exceptions.ConnectionError as e:
-            raise IPAConnectionError(
-                f"Failed to connect to {self._server}: {e}",
-                data={"server": self._server},
-            )
         except requests.exceptions.SSLError as e:
             raise IPAConnectionError(
                 f"SSL verification failed for {self._server}: {e}",
+                data={"server": self._server},
+            )
+        except requests.exceptions.ConnectionError as e:
+            raise IPAConnectionError(
+                f"Failed to connect to {self._server}: {e}",
                 data={"server": self._server},
             )
         except requests.exceptions.RequestException as e:
