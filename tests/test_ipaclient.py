@@ -1,7 +1,8 @@
-"""Tests for IPA client exceptions."""
+"""Tests for IPA client exceptions and initialization."""
 
 import pytest
 from ipaclient import (
+    IPAClient,
     IPAError,
     IPAConnectionError,
     IPAAuthenticationError,
@@ -66,3 +67,39 @@ def test_ipa_error_subclasses():
     validation_error = IPAValidationError("Validation error")
     assert isinstance(validation_error, IPAError)
     assert validation_error.code == "IPAValidationError"
+
+
+# ============================================================================
+# Client Initialization Tests
+# ============================================================================
+
+
+def test_client_init_basic(mock_server):
+    """Test basic client initialization."""
+    client = IPAClient(mock_server)
+    assert client._server == mock_server
+    assert client._base_url == f"https://{mock_server}"
+    assert client._json_url == f"https://{mock_server}/ipa/json"
+    assert client._verify_ssl is True
+    assert client._schema is None
+
+
+def test_client_init_no_ssl_verify(mock_server):
+    """Test client initialization with SSL verification disabled."""
+    client = IPAClient(mock_server, verify_ssl=False)
+    assert client._verify_ssl is False
+
+
+def test_client_init_url_construction():
+    """Test URL construction for various server formats."""
+    # Just hostname
+    client = IPAClient("ipa.example.com")
+    assert client._base_url == "https://ipa.example.com"
+
+    # Hostname with domain
+    client = IPAClient("ipa.corp.example.com")
+    assert client._base_url == "https://ipa.corp.example.com"
+
+    # IP address
+    client = IPAClient("192.168.1.100")
+    assert client._base_url == "https://192.168.1.100"

@@ -112,3 +112,38 @@ class IPAValidationError(IPAError):
     """Invalid parameters or arguments."""
 
     pass
+
+
+# ============================================================================
+# Main Client
+# ============================================================================
+
+
+class IPAClient:
+    """Minimal IPA JSON-RPC client.
+
+    Provides programmatic access to FreeIPA servers via JSON-RPC protocol.
+    Requires Kerberos authentication (existing tickets via kinit).
+
+    All methods return Python dictionaries suitable for JSON serialization
+    and MCP integration.
+
+    Example:
+        >>> client = IPAClient("ipa.example.com")
+        >>> result = client.ping()
+        >>> print(result["summary"])
+        IPA server version 4.9.8. API version 2.251
+    """
+
+    def __init__(self, server: str, verify_ssl: bool = True):
+        """Initialize IPA client.
+
+        Args:
+            server: IPA server hostname (e.g., 'ipa.example.com')
+            verify_ssl: Whether to verify SSL certificates (default: True)
+        """
+        self._server = server
+        self._base_url = f"https://{server}"
+        self._json_url = f"{self._base_url}/ipa/json"
+        self._verify_ssl = verify_ssl
+        self._schema: Optional[Dict[str, Any]] = None
