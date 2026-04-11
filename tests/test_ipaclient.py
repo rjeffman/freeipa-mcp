@@ -490,3 +490,38 @@ def test_help_topics_arg(mock_auth, mock_server, mock_schema):
 
     assert "topics" in result
     assert len(result["topics"]) == 2
+
+
+# ============================================================================
+# Help - Commands Listing Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_help_commands(mock_auth, mock_server, mock_schema):
+    """Test help('commands') lists all commands."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.help("commands")
+
+    assert "commands" in result
+    assert len(result["commands"]) == 3
+
+    # Check commands are sorted and have correct structure
+    commands = {c["name"]: c for c in result["commands"]}
+
+    assert "user_show" in commands
+    assert commands["user_show"]["summary"] == "Display information about a user"
+
+    assert "user_find" in commands
+    assert commands["user_find"]["summary"] == "Search for users"
+
+    assert "group_show" in commands
+    assert commands["group_show"]["summary"] == "Display information about a group"

@@ -435,3 +435,25 @@ class IPAClient:
         topics.sort(key=lambda t: t["name"])
 
         return {"topics": topics}
+
+    def _help_commands(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate commands listing.
+
+        Args:
+            schema: Full IPA schema
+
+        Returns:
+            Dictionary with 'commands' key containing list of command dicts
+        """
+        commands = []
+
+        for cmd_name, cmd_data in schema.get("commands", {}).items():
+            commands.append({
+                "name": cmd_name,
+                "summary": cmd_data.get("summary", ""),
+            })
+
+        # Sort alphabetically by name
+        commands.sort(key=lambda c: c["name"])
+
+        return {"commands": commands}
