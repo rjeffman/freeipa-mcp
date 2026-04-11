@@ -440,3 +440,53 @@ def test_get_schema_error(mock_auth, mock_server):
         client._get_schema()
 
     assert "Schema fetch failed" in str(exc_info.value)
+
+
+# ============================================================================
+# Help - Topic Listing Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_help_no_args_lists_topics(mock_auth, mock_server, mock_schema):
+    """Test help() with no arguments lists all topics."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.help()
+
+    assert "topics" in result
+    assert len(result["topics"]) == 2
+
+    # Check topics are sorted and have correct structure
+    topics = {t["name"]: t for t in result["topics"]}
+
+    assert "user" in topics
+    assert topics["user"]["summary"] == "Users"
+
+    assert "group" in topics
+    assert topics["group"]["summary"] == "Groups"
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_help_topics_arg(mock_auth, mock_server, mock_schema):
+    """Test help('topics') explicitly."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.help("topics")
+
+    assert "topics" in result
+    assert len(result["topics"]) == 2

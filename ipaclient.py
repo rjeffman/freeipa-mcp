@@ -362,3 +362,76 @@ class IPAClient:
             IPAConnectionError: Network failure
         """
         return self._make_request(name, args=list(args), options=kwargs)
+
+    def help(self, topic: Optional[str] = None) -> Dict[str, Any]:
+        """Retrieve help information.
+
+        Args:
+            topic: Optional topic or command name
+                   None or "topics" -> list all topics
+                   "commands" -> list all commands
+                   "<topic>" -> commands in topic
+                   "<command>" -> command details
+
+        Returns:
+            Structure varies by topic parameter. See class docstring for details.
+
+        Raises:
+            IPASchemaError: Schema fetch/parse failure
+            IPAConnectionError: Network failure
+        """
+        schema = self._get_schema()
+
+        # Default to topics listing
+        if topic is None or topic == "topics":
+            return self._help_topics(schema)
+
+        # Commands listing
+        if topic == "commands":
+            return self._help_commands(schema)
+
+        # Check if it's a command
+        if topic in schema.get("commands", {}):
+            return self._help_command(schema, topic)
+
+        # Check if it's a topic
+        if topic in schema.get("topics", {}):
+            return self._help_topic(schema, topic)
+
+        # Not found
+        raise IPAValidationError(
+            f"Unknown command or topic: {topic}",
+            code="NotFound",
+            data={"topic": topic},
+        )
+
+    def _help_topics(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate topic listing.
+
+        Args:
+            schema: Full IPA schema
+
+        Returns:
+            Dictionary with 'topics' key containing list of topic dicts
+        """
+        topics = []
+
+        for topic_name, topic_data in schema.get("topics", {}).items():
+            # Extract summary from first non-empty line of doc
+            doc = topic_data.get("doc", "")
+            summary = ""
+            for line in doc.split("\n"):
+                line = line.strip()
+                if line:
+                    summary = line
+                    break
+
+            topics.append({
+                "name": topic_name,
+                "summary": summary,
+            })
+
+        # Sort alphabetically by name
+        topics.sort(key=lambda t: t["name"])
+
+        return {"topics": topics}
