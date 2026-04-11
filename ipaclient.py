@@ -570,3 +570,106 @@ class IPAClient:
             "Dict": "dict",
         }
         return type_map.get(ipa_type, "str")
+
+    def export_schema(self) -> Dict[str, Any]:
+        """Export structured schema for MCP tool generation.
+
+        Returns:
+            Dictionary with 'topics' and 'commands' keys, structured for
+            easy consumption by MCP server tool registration:
+
+            {
+                "topics": {
+                    "user": {
+                        "name": "user",
+                        "summary": "Users",
+                        "doc": "Full documentation...",
+                        "commands": ["user_add", "user_del", ...]
+                    },
+                    ...
+                },
+                "commands": {
+                    "user_show": {
+                        "name": "user_show",
+                        "topic": "user",
+                        "summary": "...",
+                        "doc": "...",
+                        "args": [...],
+                        "options": [...]
+                    },
+                    ...
+                }
+            }
+
+        Raises:
+            IPASchemaError: Schema fetch/parse failure
+        """
+        schema = self._get_schema()
+
+        # Transform topics
+        topics = {}
+        for topic_name, topic_data in schema.get("topics", {}).items():
+            doc = topic_data.get("doc", "")
+            summary = ""
+            for line in doc.split("\n"):
+                line = line.strip()
+                if line:
+                    summary = line
+                    break
+
+            # Find commands in this topic
+            topic_commands = []
+            for cmd_name, cmd_data in schema.get("commands", {}).items():
+                if cmd_data.get("topic") == topic_name:
+                    topic_commands.append(cmd_name)
+            topic_commands.sort()
+
+            topics[topic_name] = {
+                "name": topic_name,
+                "summary": summary,
+                "doc": doc,
+                "commands": topic_commands,
+            }
+
+        # Transform commands
+        commands = {}
+        for cmd_name, cmd_data in schema.get("commands", {}).items():
+            # Separate params into args and options
+            args = []
+            options = []
+
+            for param in cmd_data.get("params", []):
+                # Skip internal params
+                if param.get("exclude") == "webui":
+                    continue
+
+                param_info = {
+                    "name": param["name"],
+                    "cli_name": param.get("cli_name", param["name"]),
+                    "type": self._map_type(param.get("type", "Str")),
+                    "required": param.get("required", False),
+                    "doc": param.get("doc", param.get("label", "")),
+                }
+
+                if "default" in param:
+                    param_info["default"] = param["default"]
+
+                # Required params with cli_name become positional args
+                if param.get("required") and param.get("cli_name"):
+                    args.append(param_info)
+                else:
+                    options.append(param_info)
+
+            commands[cmd_name] = {
+                "name": cmd_name,
+                "topic": cmd_data.get("topic", ""),
+                "summary": cmd_data.get("summary", ""),
+                "doc": cmd_data.get("doc", ""),
+                "args": args,
+                "options": options,
+            }
+
+        return {
+            "topics": topics,
+            "commands": commands,
+        }

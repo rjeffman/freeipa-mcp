@@ -673,3 +673,75 @@ def test_map_type_unknown(mock_server):
     assert client._map_type("SomeCustomType") == "str"
     assert client._map_type("") == "str"
     assert client._map_type(None) == "str"
+
+
+# ============================================================================
+# Schema Export Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_export_schema_structure(mock_auth, mock_server, mock_schema):
+    """Test export_schema returns correct structure."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.export_schema()
+
+    # Check top-level structure
+    assert "topics" in result
+    assert "commands" in result
+
+    # Check topics structure
+    assert "user" in result["topics"]
+    user_topic = result["topics"]["user"]
+    assert user_topic["name"] == "user"
+    assert user_topic["summary"] == "Users"
+    assert user_topic["doc"] == "Users\n\nManage user accounts."
+    assert "user_show" in user_topic["commands"]
+    assert "user_find" in user_topic["commands"]
+
+    # Check commands structure
+    assert "user_show" in result["commands"]
+    user_show = result["commands"]["user_show"]
+    assert user_show["name"] == "user_show"
+    assert user_show["topic"] == "user"
+    assert user_show["summary"] == "Display information about a user"
+    assert len(user_show["args"]) == 1
+    assert user_show["args"][0]["name"] == "uid"
+    assert user_show["args"][0]["type"] == "str"
+
+    # Check options don't include version param
+    option_names = [opt["name"] for opt in user_show["options"]]
+    assert "all" in option_names
+    assert "version" not in option_names
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_export_schema_caching(mock_auth, mock_server, mock_schema):
+    """Test export_schema uses cached schema."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+
+    # First call
+    result1 = client.export_schema()
+    assert len(responses.calls) == 1
+
+    # Second call - should use cache
+    result2 = client.export_schema()
+    assert len(responses.calls) == 1
+
+    assert result1 == result2
