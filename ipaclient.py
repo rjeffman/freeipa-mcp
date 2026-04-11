@@ -487,3 +487,86 @@ class IPAClient:
             "doc": topic_data.get("doc", ""),
             "commands": commands,
         }
+
+    def _help_command(self, schema: Dict[str, Any], command: str) -> Dict[str, Any]:
+        """Generate command details with args and options.
+
+        Separates parameters into:
+        - args: required parameters with cli_name (positional arguments)
+        - options: optional parameters (keyword arguments)
+
+        Parameters with 'exclude' key set to 'webui' are excluded.
+
+        Args:
+            schema: Full IPA schema
+            command: Command name (e.g., 'user_show')
+
+        Returns:
+            Dictionary with command info, args list, and options list
+        """
+        cmd_data = schema["commands"][command]
+
+        args = []
+        options = []
+
+        for param in cmd_data.get("params", []):
+            # Skip parameters excluded from CLI/API
+            if param.get("exclude") == "webui":
+                continue
+
+            param_info: Dict[str, Any] = {
+                "name": param["name"],
+                "type": self._map_type(param.get("type")),
+            }
+
+            # Add optional fields if present
+            if "label" in param:
+                param_info["label"] = param["label"]
+            if "doc" in param:
+                param_info["doc"] = param["doc"]
+            if "default" in param:
+                param_info["default"] = param["default"]
+
+            if param.get("required") and param.get("cli_name"):
+                # Required params with cli_name are positional args
+                param_info["cli_name"] = param["cli_name"]
+                args.append(param_info)
+            else:
+                options.append(param_info)
+
+        # Extract topic (handle both 'topic' and 'topic_topic' fields)
+        topic = cmd_data.get("topic", "")
+        if not topic and "topic_topic" in cmd_data:
+            # topic_topic is like "user/1", extract just "user"
+            topic = cmd_data["topic_topic"].split("/")[0]
+
+        # Use doc as summary if summary is missing
+        doc = cmd_data.get("doc", "")
+        summary = cmd_data.get("summary", "")
+        if not summary and doc:
+            # Use first line of doc as summary
+            summary = doc.split("\n")[0] if doc else ""
+
+        return {
+            "name": cmd_data.get("name", command),
+            "full_name": cmd_data.get("full_name", command),
+            "topic": topic,
+            "doc": doc,
+            "summary": summary,
+            "args": args,
+            "options": options,
+        }
+
+    def _map_type(self, ipa_type: Optional[str]) -> str:
+        """Map IPA parameter type to Python type name."""
+        if not ipa_type:
+            return "str"
+        type_map = {
+            "Str": "str",
+            "Int": "int",
+            "Bool": "bool",
+            "Flag": "bool",
+            "List": "list",
+            "Dict": "dict",
+        }
+        return type_map.get(ipa_type, "str")

@@ -578,3 +578,72 @@ def test_help_unknown_topic(mock_auth, mock_server, mock_schema):
 
     assert exc_info.value.code == "NotFound"
     assert "nonexistent" in str(exc_info.value)
+
+
+# ============================================================================
+# Help - Command Details Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_help_command_details(mock_auth, mock_server, mock_schema):
+    """Test help('<command>') returns command details with args and options."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.help("user_show")
+
+    assert result["name"] == "user_show"
+    assert result["topic"] == "user"
+    assert result["doc"] == "Display information about a user.\n\nShows detailed user attributes."
+    assert result["summary"] == "Display information about a user"
+
+    # Required params with cli_name become args
+    assert "args" in result
+    assert len(result["args"]) == 1
+    assert result["args"][0]["name"] == "uid"
+    assert result["args"][0]["cli_name"] == "login"
+    assert result["args"][0]["type"] == "str"
+    assert result["args"][0]["label"] == "User login"
+
+    # Optional params become options (excluding 'version' with exclude=webui)
+    assert "options" in result
+    assert len(result["options"]) == 1
+    assert result["options"][0]["name"] == "all"
+    assert result["options"][0]["type"] == "bool"
+    assert result["options"][0]["default"] is False
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_help_command_no_required_args(mock_auth, mock_server, mock_schema):
+    """Test help('<command>') with no required args has empty args list."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.help("user_find")
+
+    assert result["name"] == "user_find"
+    assert result["args"] == []
+
+    # All non-excluded optional params become options
+    assert len(result["options"]) == 2
+    option_names = [o["name"] for o in result["options"]]
+    assert "criteria" in option_names
+    assert "sizelimit" in option_names
+
+    # Check type mapping
+    options = {o["name"]: o for o in result["options"]}
+    assert options["criteria"]["type"] == "str"
+    assert options["sizelimit"]["type"] == "int"
