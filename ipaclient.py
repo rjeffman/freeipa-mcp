@@ -147,3 +147,111 @@ class IPAClient:
         self._json_url = f"{self._base_url}/ipa/json"
         self._verify_ssl = verify_ssl
         self._schema: Optional[Dict[str, Any]] = None
+
+    def _make_request(
+        self,
+        method: str,
+        args: Optional[List[Any]] = None,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Make a JSON-RPC request to the IPA server.
+
+        Args:
+            method: IPA command name (e.g., 'user_show', 'ping')
+            args: Positional arguments for the command
+            options: Keyword arguments/options for the command
+
+        Returns:
+            Result dictionary from the server
+
+        Raises:
+            IPAConnectionError: Network/connection failure
+            IPAAuthenticationError: Kerberos authentication failure
+            IPAServerError: Server returned an error
+        """
+        if args is None:
+            args = []
+        if options is None:
+            options = {}
+
+        # Add API version if not already present
+        if "version" not in options:
+            options["version"] = "2.251"
+
+        # Build JSON-RPC payload
+        payload = {
+            "method": method,
+            "params": [args, options],
+            "id": 0,
+        }
+
+        # Prepare headers
+        headers = {
+            "Content-Type": "application/json",
+            "Referer": f"{self._base_url}/ipa",
+            "Accept": "application/json",
+        }
+
+        # Make request with Kerberos authentication
+        try:
+            response = requests.post(
+                self._json_url,
+                json=payload,
+                headers=headers,
+                auth=HTTPSPNEGOAuth(opportunistic_auth=True),
+                verify=self._verify_ssl,
+            )
+        except requests.exceptions.ConnectionError as e:
+            raise IPAConnectionError(
+                f"Failed to connect to {self._server}: {e}",
+                data={"server": self._server},
+            )
+        except requests.exceptions.SSLError as e:
+            raise IPAConnectionError(
+                f"SSL verification failed for {self._server}: {e}",
+                data={"server": self._server},
+            )
+        except requests.exceptions.RequestException as e:
+            raise IPAConnectionError(
+                f"Request failed: {e}",
+                data={"server": self._server},
+            )
+
+        # Check HTTP status
+        if response.status_code != 200:
+            raise IPAServerError(
+                f"HTTP {response.status_code}: {response.text}",
+                code=f"HTTP{response.status_code}",
+                data={"status_code": response.status_code},
+            )
+
+        # Parse JSON response
+        try:
+            result = response.json()
+        except ValueError as e:
+            raise IPAServerError(
+                f"Invalid JSON response: {e}",
+                code="InvalidJSON",
+            )
+
+        # Check for IPA errors
+        if result.get("error") is not None:
+            error = result["error"]
+            error_msg = error.get("message", str(error))
+            error_code = error.get("name", error.get("code", "UnknownError"))
+
+            # Check for authentication errors
+            if "Unauthorized" in error_msg or "credentials" in error_msg.lower():
+                raise IPAAuthenticationError(
+                    f"Authentication failed: {error_msg}",
+                    code=str(error_code),
+                    data=error,
+                )
+
+            raise IPAServerError(
+                f"IPA error: {error_msg}",
+                code=str(error_code),
+                data=error,
+            )
+
+        return result.get("result", {})

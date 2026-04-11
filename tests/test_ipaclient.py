@@ -1,6 +1,9 @@
 """Tests for IPA client exceptions and initialization."""
 
+from unittest.mock import patch
 import pytest
+import responses
+import json
 from ipaclient import (
     IPAClient,
     IPAError,
@@ -103,3 +106,146 @@ def test_client_init_url_construction():
     # IP address
     client = IPAClient("192.168.1.100")
     assert client._base_url == "https://192.168.1.100"
+
+
+# ============================================================================
+# JSON-RPC Request Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_make_request_basic(mock_auth, mock_server):
+    """Test basic JSON-RPC request."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={
+            "result": {"summary": "OK"},
+            "error": None,
+        },
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client._make_request("ping")
+
+    assert result == {"summary": "OK"}
+    assert len(responses.calls) == 1
+
+    # Verify request payload
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["method"] == "ping"
+    assert request_body["params"] == [[], {"version": "2.251"}]
+    assert request_body["id"] == 0
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_make_request_with_args(mock_auth, mock_server):
+    """Test JSON-RPC request with positional arguments."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": {"uid": "admin"}, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client._make_request("user_show", args=["admin"])
+
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["params"][0] == ["admin"]
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_make_request_with_options(mock_auth, mock_server):
+    """Test JSON-RPC request with options."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": {"data": "test"}, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client._make_request("test", options={"all": True, "raw": False})
+
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["params"][1]["all"] is True
+    assert request_body["params"][1]["raw"] is False
+    assert request_body["params"][1]["version"] == "2.251"
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_make_request_version_override(mock_auth, mock_server):
+    """Test that explicit version is not overridden."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": {}, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    client._make_request("test", options={"version": "2.250"})
+
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["params"][1]["version"] == "2.250"
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_make_request_http_error(mock_auth, mock_server):
+    """Test handling of HTTP errors."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"error": "Not found"},
+        status=404,
+    )
+
+    client = IPAClient(mock_server)
+    with pytest.raises(IPAServerError) as exc_info:
+        client._make_request("test")
+
+    assert "HTTP 404" in str(exc_info.value)
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_make_request_ipa_error(mock_auth, mock_server):
+    """Test handling of IPA server errors."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={
+            "result": None,
+            "error": {
+                "code": 4001,
+                "message": "User not found",
+                "name": "NotFound",
+            },
+        },
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    with pytest.raises(IPAServerError) as exc_info:
+        client._make_request("user_show", args=["nonexistent"])
+
+    assert "User not found" in str(exc_info.value)
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_make_request_connection_error(mock_auth, mock_server):
+    """Test handling of connection errors."""
+    client = IPAClient(mock_server)
+
+    with pytest.raises(IPAConnectionError) as exc_info:
+        client._make_request("ping")
+
+    assert "Connection" in str(exc_info.value) or "refused" in str(exc_info.value).lower()
