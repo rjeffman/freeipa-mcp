@@ -249,3 +249,37 @@ def test_make_request_connection_error(mock_auth, mock_server):
         client._make_request("ping")
 
     assert "Connection" in str(exc_info.value) or "refused" in str(exc_info.value).lower()
+
+
+# ============================================================================
+# Ping Command Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_ping_success(mock_auth, mock_server, mock_ping_response):
+    """Test successful ping."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json=mock_ping_response,
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.ping()
+
+    assert "summary" in result
+    assert "IPA server version" in result["summary"]
+    assert "API version" in result["summary"]
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_ping_connection_error(mock_auth, mock_server):
+    """Test ping with connection error."""
+    client = IPAClient(mock_server)
+
+    with pytest.raises(IPAConnectionError):
+        client.ping()

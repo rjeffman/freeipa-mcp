@@ -117,7 +117,8 @@ def mock_schema():
 def mock_ping_response():
     """Mock ping command response."""
     return {
-        "result": {},
-        "value": None,
-        "summary": "IPA server version 4.9.8. API version 2.251",
+        "result": {
+            "summary": "IPA server version 4.9.8. API version 2.251",
+        },
+        "error": None,
     }

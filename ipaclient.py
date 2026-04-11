@@ -255,3 +255,17 @@ class IPAClient:
             )
 
         return result.get("result", {})
+
+    def ping(self) -> Dict[str, Any]:
+        """Test server connectivity.
+
+        Returns:
+            Dictionary with summary of server version and API version.
+            Example: {"summary": "IPA server version 4.9.8. API version 2.251"}
+
+        Raises:
+            IPAConnectionError: Network/connection failure
+            IPAAuthenticationError: Kerberos auth failure
+            IPAServerError: Server returned error
+        """
+        return self._make_request("ping")
