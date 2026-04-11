@@ -283,3 +283,91 @@ def test_ping_connection_error(mock_auth, mock_server):
 
     with pytest.raises(IPAConnectionError):
         client.ping()
+
+
+# ============================================================================
+# Command Execution Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_command_no_args(mock_auth, mock_server):
+    """Test command execution with no arguments."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": {"data": "test"}, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.command("config_show")
+
+    assert result == {"data": "test"}
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_command_with_args(mock_auth, mock_server):
+    """Test command execution with positional arguments."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={
+            "result": {"uid": ["admin"], "cn": ["Administrator"]},
+            "error": None,
+        },
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.command("user_show", "admin")
+
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["method"] == "user_show"
+    assert request_body["params"][0] == ["admin"]
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_command_with_kwargs(mock_auth, mock_server):
+    """Test command execution with keyword arguments."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={
+            "result": [{"uid": ["user1"]}, {"uid": ["user2"]}],
+            "count": 2,
+            "error": None,
+        },
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.command("user_find", uid="test", sizelimit=10)
+
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["params"][1]["uid"] == "test"
+    assert request_body["params"][1]["sizelimit"] == 10
+    assert request_body["params"][1]["version"] == "2.251"
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_command_with_args_and_kwargs(mock_auth, mock_server):
+    """Test command execution with both args and kwargs."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": {"cn": ["testgroup"]}, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    result = client.command("group_show", "testgroup", all=True, raw=False)
+
+    request_body = json.loads(responses.calls[0].request.body)
+    assert request_body["params"][0] == ["testgroup"]
+    assert request_body["params"][1]["all"] is True
+    assert request_body["params"][1]["raw"] is False

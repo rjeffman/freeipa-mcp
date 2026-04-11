@@ -269,3 +269,33 @@ class IPAClient:
             IPAServerError: Server returned error
         """
         return self._make_request("ping")
+
+    def command(self, name: str, *args, **kwargs) -> Dict[str, Any]:
+        """Execute arbitrary IPA command.
+
+        Args:
+            name: Command name (e.g., 'user_show', 'group_find')
+            *args: Positional arguments for the command
+            **kwargs: Keyword arguments/options for the command
+
+        Returns:
+            Command-specific result dictionary. Structure varies by command,
+            but typically includes:
+            - 'result': Main result data (dict, list, or other type)
+            - 'summary': Human-readable summary (for some commands)
+            - 'count': Number of results (for search commands)
+            - 'truncated': Whether results were truncated (for search commands)
+
+        Example:
+            >>> client.command("user_show", "admin")
+            {'uid': ['admin'], 'cn': ['Administrator'], ...}
+
+            >>> client.command("user_find", uid="admin")
+            {'result': [...], 'count': 1, 'truncated': False}
+
+        Raises:
+            IPAServerError: Command execution failed
+            IPAValidationError: Invalid arguments
+            IPAConnectionError: Network failure
+        """
+        return self._make_request(name, args=list(args), options=kwargs)
