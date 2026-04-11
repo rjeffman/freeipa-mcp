@@ -270,6 +270,69 @@ class IPAClient:
         """
         return self._make_request("ping")
 
+    def _get_schema(self) -> Dict[str, Any]:
+        """Retrieve and cache IPA schema.
+
+        Fetches the full IPA schema on first call and caches it in memory.
+        Subsequent calls return the cached version.
+
+        Returns:
+            Full IPA schema dictionary with 'topics' and 'commands' keys
+
+        Raises:
+            IPASchemaError: Schema fetch or parse failure
+        """
+        if self._schema is not None:
+            return self._schema
+
+        try:
+            result = self._make_request("schema")
+
+            # Unwrap nested result (IPA returns {'result': {'commands': ...}})
+            if isinstance(result, dict) and "result" in result:
+                result = result["result"]
+
+            # Validate schema structure
+            if not isinstance(result, dict):
+                raise IPASchemaError(
+                    "Invalid schema format: expected dict",
+                    data={"type": type(result).__name__},
+                )
+
+            if "commands" not in result:
+                raise IPASchemaError(
+                    "Invalid schema: missing 'commands' key",
+                    data={"keys": list(result.keys())},
+                )
+
+            # Transform commands list to dict keyed by name for easier access
+            if isinstance(result["commands"], list):
+                commands_dict = {}
+                for cmd in result["commands"]:
+                    if "name" in cmd:
+                        commands_dict[cmd["name"]] = cmd
+                result["commands"] = commands_dict
+
+            # Transform topics list to dict if needed
+            if "topics" in result and isinstance(result["topics"], list):
+                topics_dict = {}
+                for topic in result["topics"]:
+                    if "name" in topic:
+                        topics_dict[topic["name"]] = topic
+                result["topics"] = topics_dict
+
+            self._schema = result
+            return self._schema
+
+        except IPAServerError as e:
+            raise IPASchemaError(
+                f"Schema fetch failed: {e.message}",
+                data=e.data,
+            )
+        except (IPAConnectionError, IPAAuthenticationError):
+            # Re-raise connection/auth errors as-is
+            raise
+
     def command(self, name: str, *args, **kwargs) -> Dict[str, Any]:
         """Execute arbitrary IPA command.
 

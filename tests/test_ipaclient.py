@@ -371,3 +371,72 @@ def test_command_with_args_and_kwargs(mock_auth, mock_server):
     assert request_body["params"][0] == ["testgroup"]
     assert request_body["params"][1]["all"] is True
     assert request_body["params"][1]["raw"] is False
+
+
+# ============================================================================
+# Schema Retrieval and Caching Tests
+# ============================================================================
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_get_schema_initial_fetch(mock_auth, mock_server, mock_schema):
+    """Test initial schema fetch."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+    schema = client._get_schema()
+
+    assert schema == mock_schema
+    assert client._schema == mock_schema
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_get_schema_cached(mock_auth, mock_server, mock_schema):
+    """Test schema caching."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": mock_schema, "error": None},
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+
+    # First call - fetches from server
+    schema1 = client._get_schema()
+    assert len(responses.calls) == 1
+
+    # Second call - uses cache
+    schema2 = client._get_schema()
+    assert len(responses.calls) == 1  # No additional call
+    assert schema1 is schema2
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_get_schema_error(mock_auth, mock_server):
+    """Test schema fetch error handling."""
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={
+            "result": None,
+            "error": {"message": "Schema not available", "code": 500},
+        },
+        status=200,
+    )
+
+    client = IPAClient(mock_server)
+
+    with pytest.raises(IPASchemaError) as exc_info:
+        client._get_schema()
+
+    assert "Schema fetch failed" in str(exc_info.value)
