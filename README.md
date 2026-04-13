@@ -117,6 +117,55 @@ print(f"Args: {cmd['args']}")
 print(f"Options: {cmd['options']}")
 ```
 
+### Help System (Markdown Format)
+
+For AI agents and tools that prefer structured markdown:
+
+```python
+from ipaclient import IPAClient
+
+client = IPAClient("ipa.example.com")
+
+# Get all topics as markdown table
+topics_md = client.help_markdown()
+print(topics_md)
+# Output:
+# # IPA Help Topics
+# | Topic | Description |
+# |-------|-------------|
+# | user | Users |
+# | group | Groups |
+# ...
+
+# Get topic details with commands
+user_topic_md = client.help_markdown("user")
+print(user_topic_md)
+# Output:
+# # user
+# Users
+# Manage user entries. All users are POSIX users...
+# ## Commands
+# | Command | Description |
+# |---------|-------------|
+# | user_add | Add a new user. |
+# ...
+
+# Get command details with options
+cmd_md = client.help_markdown("user_show")
+print(cmd_md)
+# Output:
+# # user_show
+# Display information about a user.
+# ## Options
+# | Option | Type | Description |
+# |--------|------|-------------|
+# | uid | str | User login |
+# ...
+```
+
+All `help_markdown()` calls work with both old and new FreeIPA servers
+by converting the structured JSON output from `help()` to markdown format.
+
 ### Schema Export
 
 ```python

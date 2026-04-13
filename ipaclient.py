@@ -33,6 +33,33 @@ Help System::
     >>> print(cmd["args"][0]["name"])
     uid
 
+Help System (Markdown Format)::
+
+    >>> markdown = client.help_markdown()  # Topics table
+    >>> print(markdown)
+    # IPA Help Topics
+    | Topic | Description |
+    |-------|-------------|
+    | user | Users |
+    ...
+
+    >>> markdown = client.help_markdown("user")  # Topic details
+    >>> print(markdown)
+    # user
+    Users
+    Manage user entries...
+    ## Commands
+    | Command | Description |
+    ...
+
+    >>> markdown = client.help_markdown("user_show")  # Command details
+    >>> print(markdown)
+    # user_show
+    Display information about a user.
+    ## Options
+    | Option | Type | Description |
+    ...
+
 Schema Export::
 
     >>> schema = client.export_schema()
