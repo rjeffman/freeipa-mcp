@@ -669,9 +669,7 @@ class IPAClient:
 
         # Command details (has 'args' and 'options' keys)
         if "args" in help_data or "options" in help_data:
-            raise NotImplementedError(
-                "_markdown_command_details() not yet implemented"
-            )
+            return self._markdown_command_details(help_data)
 
         # Fallback: return JSON as code block
         return f"```json\n{json.dumps(help_data, indent=2)}\n```"
@@ -756,6 +754,66 @@ class IPAClient:
                 cmd_name = cmd.get("name", "").replace("|", "\\|")
                 cmd_summary = cmd.get("summary", "").replace("|", "\\|")
                 lines.append(f"| {cmd_name} | {cmd_summary} |")
+
+        return "\n".join(lines)
+
+    def _markdown_command_details(self, cmd_data: Dict[str, Any]) -> str:
+        """Format command details with args and options as markdown.
+
+        Args:
+            cmd_data: Command dict with 'name', 'doc', 'args', 'options'
+
+        Returns:
+            Markdown-formatted command page with args/options tables
+        """
+        name = cmd_data.get("name", "Unknown")
+        doc = cmd_data.get("doc", "")
+        summary = cmd_data.get("summary", "")
+        args = cmd_data.get("args", [])
+        options = cmd_data.get("options", [])
+
+        lines = [
+            f"# {name}",
+            "",
+        ]
+
+        # Add summary or doc
+        description = doc if doc else summary
+        if description:
+            lines.append(description.strip())
+            lines.append("")
+
+        # Add arguments table if present
+        if args:
+            lines.append("## Arguments")
+            lines.append("")
+            lines.append("| Argument | Type | Description |")
+            lines.append("|----------|------|-------------|")
+
+            for arg in args:
+                arg_name = arg.get("name", "").replace("|", "\\|")
+                arg_type = arg.get("type", "").replace("|", "\\|")
+                arg_doc = arg.get("doc", arg.get("label", "")).replace(
+                    "|", "\\|"
+                )
+                lines.append(f"| {arg_name} | {arg_type} | {arg_doc} |")
+
+            lines.append("")
+
+        # Add options table if present
+        if options:
+            lines.append("## Options")
+            lines.append("")
+            lines.append("| Option | Type | Description |")
+            lines.append("|--------|------|-------------|")
+
+            for opt in options:
+                opt_name = opt.get("name", "").replace("|", "\\|")
+                opt_type = opt.get("type", "").replace("|", "\\|")
+                opt_doc = opt.get("doc", opt.get("label", "")).replace(
+                    "|", "\\|"
+                )
+                lines.append(f"| {opt_name} | {opt_type} | {opt_doc} |")
 
         return "\n".join(lines)
 
