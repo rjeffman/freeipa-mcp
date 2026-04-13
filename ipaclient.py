@@ -660,9 +660,7 @@ class IPAClient:
 
         # Commands listing
         if "commands" in help_data:
-            raise NotImplementedError(
-                "_markdown_commands() not yet implemented"
-            )
+            return self._markdown_commands(help_data["commands"])
 
         # Command details (has 'args' and 'options' keys)
         if "args" in help_data or "options" in help_data:
@@ -692,6 +690,29 @@ class IPAClient:
         for topic in topics:
             name = topic.get("name", "").replace("|", "\\|")  # Escape pipes
             summary = topic.get("summary", "").replace("|", "\\|")
+            lines.append(f"| {name} | {summary} |")
+
+        return "\n".join(lines)
+
+    def _markdown_commands(self, commands: List[Dict[str, str]]) -> str:
+        """Format commands list as markdown table.
+
+        Args:
+            commands: List of command dicts with 'name' and 'summary'
+
+        Returns:
+            Markdown table of commands
+        """
+        lines = [
+            "# IPA Commands",
+            "",
+            "| Command | Description |",
+            "|---------|-------------|",
+        ]
+
+        for cmd in commands:
+            name = cmd.get("name", "").replace("|", "\\|")  # Escape pipes
+            summary = cmd.get("summary", "").replace("|", "\\|")
             lines.append(f"| {name} | {summary} |")
 
         return "\n".join(lines)
