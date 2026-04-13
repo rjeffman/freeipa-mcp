@@ -1,7 +1,6 @@
 """Pytest configuration and shared fixtures."""
 
 import pytest
-import json
 
 
 @pytest.fixture
@@ -29,7 +28,10 @@ def mock_schema():
                 "name": "user_show",
                 "topic": "user",
                 "full_name": "user_show",
-                "doc": "Display information about a user.\n\nShows detailed user attributes.",
+                "doc": (
+                    "Display information about a user.\n\n"
+                    "Shows detailed user attributes."
+                ),
                 "summary": "Display information about a user",
                 "params": [
                     {

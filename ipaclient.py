@@ -82,11 +82,11 @@ Dependencies:
     - requests-gssapi: Kerberos authentication
 """
 
-from typing import Dict, List, Optional, Any
 import json
+from typing import Any, Dict, List, Optional
+
 import requests
 from requests_gssapi import HTTPSPNEGOAuth
-
 
 __version__ = "0.1.0"
 __all__ = [
@@ -532,10 +532,12 @@ class IPAClient:
                     summary = line
                     break
 
-            topics.append({
-                "name": topic_name,
-                "summary": summary,
-            })
+            topics.append(
+                {
+                    "name": topic_name,
+                    "summary": summary,
+                }
+            )
 
         # Sort alphabetically by name
         topics.sort(key=lambda t: t["name"])
@@ -554,10 +556,12 @@ class IPAClient:
         commands = []
 
         for cmd_name, cmd_data in schema.get("commands", {}).items():
-            commands.append({
-                "name": cmd_name,
-                "summary": cmd_data.get("summary", ""),
-            })
+            commands.append(
+                {
+                    "name": cmd_name,
+                    "summary": cmd_data.get("summary", ""),
+                }
+            )
 
         # Sort alphabetically by name
         commands.sort(key=lambda c: c["name"])
@@ -587,10 +591,12 @@ class IPAClient:
                 if not summary:
                     doc = cmd_data.get("doc", "")
                     summary = doc.split("\n")[0] if doc else ""
-                commands.append({
-                    "name": cmd_name,
-                    "summary": summary,
-                })
+                commands.append(
+                    {
+                        "name": cmd_name,
+                        "summary": summary,
+                    }
+                )
 
         # Sort commands alphabetically
         commands.sort(key=lambda c: c["name"])
@@ -820,9 +826,7 @@ class IPAClient:
             for arg in args:
                 arg_name = arg.get("name", "").replace("|", "\\|")
                 arg_type = arg.get("type", "").replace("|", "\\|")
-                arg_doc = arg.get("doc", arg.get("label", "")).replace(
-                    "|", "\\|"
-                )
+                arg_doc = arg.get("doc", arg.get("label", "")).replace("|", "\\|")
                 lines.append(f"| {arg_name} | {arg_type} | {arg_doc} |")
 
             lines.append("")
@@ -837,9 +841,7 @@ class IPAClient:
             for opt in options:
                 opt_name = opt.get("name", "").replace("|", "\\|")
                 opt_type = opt.get("type", "").replace("|", "\\|")
-                opt_doc = opt.get("doc", opt.get("label", "")).replace(
-                    "|", "\\|"
-                )
+                opt_doc = opt.get("doc", opt.get("label", "")).replace("|", "\\|")
                 lines.append(f"| {opt_name} | {opt_type} | {opt_doc} |")
 
         return "\n".join(lines)

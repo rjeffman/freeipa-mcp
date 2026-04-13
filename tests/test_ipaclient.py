@@ -1,16 +1,18 @@
 """Tests for IPA client exceptions and initialization."""
 
+import json
 from unittest.mock import patch
+
 import pytest
 import responses
-import json
+
 from ipaclient import (
-    IPAClient,
-    IPAError,
-    IPAConnectionError,
     IPAAuthenticationError,
-    IPAServerError,
+    IPAClient,
+    IPAConnectionError,
+    IPAError,
     IPASchemaError,
+    IPAServerError,
     IPAValidationError,
 )
 
@@ -152,7 +154,7 @@ def test_make_request_with_args(mock_auth, mock_server):
     )
 
     client = IPAClient(mock_server)
-    result = client._make_request("user_show", args=["admin"])
+    client._make_request("user_show", args=["admin"])
 
     request_body = json.loads(responses.calls[0].request.body)
     assert request_body["params"][0] == ["admin"]
@@ -170,7 +172,7 @@ def test_make_request_with_options(mock_auth, mock_server):
     )
 
     client = IPAClient(mock_server)
-    result = client._make_request("test", options={"all": True, "raw": False})
+    client._make_request("test", options={"all": True, "raw": False})
 
     request_body = json.loads(responses.calls[0].request.body)
     assert request_body["params"][1]["all"] is True
@@ -248,7 +250,9 @@ def test_make_request_connection_error(mock_auth, mock_server):
     with pytest.raises(IPAConnectionError) as exc_info:
         client._make_request("ping")
 
-    assert "Connection" in str(exc_info.value) or "refused" in str(exc_info.value).lower()
+    assert (
+        "Connection" in str(exc_info.value) or "refused" in str(exc_info.value).lower()
+    )
 
 
 # ============================================================================
@@ -322,7 +326,7 @@ def test_command_with_args(mock_auth, mock_server):
     )
 
     client = IPAClient(mock_server)
-    result = client.command("user_show", "admin")
+    client.command("user_show", "admin")
 
     request_body = json.loads(responses.calls[0].request.body)
     assert request_body["method"] == "user_show"
@@ -345,7 +349,7 @@ def test_command_with_kwargs(mock_auth, mock_server):
     )
 
     client = IPAClient(mock_server)
-    result = client.command("user_find", uid="test", sizelimit=10)
+    client.command("user_find", uid="test", sizelimit=10)
 
     request_body = json.loads(responses.calls[0].request.body)
     assert request_body["params"][1]["uid"] == "test"
@@ -365,7 +369,7 @@ def test_command_with_args_and_kwargs(mock_auth, mock_server):
     )
 
     client = IPAClient(mock_server)
-    result = client.command("group_show", "testgroup", all=True, raw=False)
+    client.command("group_show", "testgroup", all=True, raw=False)
 
     request_body = json.loads(responses.calls[0].request.body)
     assert request_body["params"][0] == ["testgroup"]
@@ -601,7 +605,10 @@ def test_help_command_details(mock_auth, mock_server, mock_schema):
 
     assert result["name"] == "user_show"
     assert result["topic"] == "user"
-    assert result["doc"] == "Display information about a user.\n\nShows detailed user attributes."
+    assert (
+        result["doc"]
+        == "Display information about a user.\n\nShows detailed user attributes."
+    )
     assert result["summary"] == "Display information about a user"
 
     # Required params with cli_name become args

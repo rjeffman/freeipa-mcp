@@ -10,8 +10,8 @@ Skip if no server available: pytest -m "not integration"
 """
 
 import pytest
-from ipaclient import IPAClient, IPAError
 
+from ipaclient import IPAClient, IPAError
 
 # Mark all tests in this file as integration tests
 pytestmark = pytest.mark.integration
@@ -40,7 +40,11 @@ def test_topics_markdown(live_client):
 
     # Verify content
     lines = markdown.split("\n")
-    topic_lines = [line for line in lines if line.startswith("|") and "Topic" not in line and "---" not in line]
+    topic_lines = [
+        line
+        for line in lines
+        if line.startswith("|") and "Topic" not in line and "---" not in line
+    ]
     assert len(topic_lines) > 10, f"Expected >10 topics, got {len(topic_lines)}"
 
 
@@ -63,7 +67,11 @@ def test_commands_markdown(live_client):
 
     # Verify content
     lines = markdown.split("\n")
-    cmd_lines = [line for line in lines if line.startswith("|") and "Command" not in line and "---" not in line]
+    cmd_lines = [
+        line
+        for line in lines
+        if line.startswith("|") and "Command" not in line and "---" not in line
+    ]
     assert len(cmd_lines) > 100, f"Expected >100 commands, got {len(cmd_lines)}"
 
 
@@ -115,4 +123,6 @@ def test_invalid_topic(live_client):
     with pytest.raises(IPAError) as exc_info:
         live_client.help_markdown("nonexistent_topic_12345")
 
-    assert "Unknown command or topic" in str(exc_info.value) or "NotFound" in str(exc_info.value)
+    assert "Unknown command or topic" in str(exc_info.value) or "NotFound" in str(
+        exc_info.value
+    )

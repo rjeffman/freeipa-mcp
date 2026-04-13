@@ -10,8 +10,8 @@ Skip if no server available: pytest -m "not integration"
 """
 
 import pytest
-from ipaclient import IPAClient, IPAConnectionError
 
+from ipaclient import IPAClient, IPAConnectionError
 
 # Mark all tests in this file as integration tests
 pytestmark = pytest.mark.integration

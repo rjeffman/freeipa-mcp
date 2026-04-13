@@ -16,7 +16,7 @@ A minimal Python client for interacting with FreeIPA servers via JSON-RPC. Desig
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.10+
 - A FreeIPA server accessible over HTTPS
 - Valid Kerberos credentials (`kinit`)
 
@@ -32,23 +32,29 @@ apt install krb5-user libkrb5-dev
 
 ### Python Dependencies
 
-```
-requests>=2.25.0
-requests-gssapi>=1.2.0
-```
+Core dependencies (defined in `pyproject.toml`):
+- `requests>=2.25.0` - HTTP client
+- `requests-gssapi>=1.2.0` - Kerberos authentication
+
+Development dependencies:
+- `pytest>=7.0.0` - Testing framework
+- `pytest-cov>=4.0.0` - Coverage reporting
+- `ruff>=0.15.10` - Linting and formatting
+- `ty>=0.0.29` - Type checking
+- `responses>=0.20.0` - HTTP mocking for tests
 
 ## Installation
 
 ```bash
 git clone https://github.com/rjeffman/freeipa-mcp-py.git
 cd freeipa-mcp-py
-pip install -r requirements.txt
+pip install -e .
 ```
 
-For development:
+For development (includes testing and linting tools):
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 ```
 
 ## Quick Start
@@ -308,6 +314,30 @@ def handle_tool_call(tool_name, arguments):
 
 ## Testing
 
+### CI Script
+
+The project includes a CI script for code quality checks:
+
+```bash
+# Check code formatting (PEP8 compliance)
+./contrib/ci.sh format
+
+# Run linter
+./contrib/ci.sh linter
+
+# Run type checker
+./contrib/ci.sh type
+
+# Check shell scripts
+./contrib/ci.sh shellcheck
+
+# Run tests with coverage report
+./contrib/ci.sh test
+
+# Run all checks
+./contrib/ci.sh all
+```
+
 ### Unit Tests
 
 ```bash
@@ -329,7 +359,8 @@ pytest -m integration -v
 ### Coverage
 
 ```bash
-pytest --cov=ipaclient --cov-report=term
+pytest --cov=ipaclient --cov-report=term-missing --cov-report=html
+# HTML report: htmlcov/index.html
 ```
 
 ## License
@@ -340,8 +371,11 @@ This project is licensed under the GNU General Public License v3.0. See [COPYING
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Write tests for your changes
-4. Ensure all tests pass (`pytest -v`)
-5. Commit your changes
-6. Push to the branch (`git push origin feature/my-feature`)
-7. Open a Pull Request
+3. Install development dependencies (`pip install -e ".[dev]"`)
+4. Write tests for your changes
+5. Ensure all checks pass (`./contrib/ci.sh all`)
+6. Commit your changes with sign-off (`git commit --signoff`)
+7. Push to the branch (`git push origin feature/my-feature`)
+8. Open a Pull Request
+
+All code must pass formatting, linting, type checking, and tests before merging.
