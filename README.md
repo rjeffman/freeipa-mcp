@@ -372,10 +372,64 @@ This project is licensed under the GNU General Public License v3.0. See [COPYING
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Install development dependencies (`pip install -e ".[dev]"`)
-4. Write tests for your changes
-5. Ensure all checks pass (`./contrib/ci.sh all`)
-6. Commit your changes with sign-off (`git commit --signoff`)
-7. Push to the branch (`git push origin feature/my-feature`)
-8. Open a Pull Request
+4. Set up pre-commit hooks (recommended - choose one):
 
-All code must pass formatting, linting, type checking, and tests before merging.
+   **Option 1: Using pre-commit**
+   ```bash
+   pip install pre-commit
+   pre-commit install
+   ```
+
+   **Option 2: Using prek**
+   ```bash
+   pip install prek
+   prek install
+   ```
+
+5. Write tests for your changes
+6. Ensure all checks pass (`./contrib/ci.sh all`)
+7. Commit your changes with sign-off (`git commit --signoff`)
+8. Push to the branch (`git push origin feature/my-feature`)
+9. Open a Pull Request
+
+### Pre-commit Hooks
+
+The project uses pre-commit hooks to enforce code quality standards automatically before each commit. You can use either **pre-commit** or **prek** to manage these hooks.
+
+The hooks run:
+
+- **trailing-whitespace**: Remove trailing whitespace
+- **end-of-file-fixer**: Ensure files end with a newline
+- **check-added-large-files**: Prevent commits of large files (>100KB)
+- **check-merge-conflict**: Detect merge conflict markers
+- **shellcheck**: Lint shell scripts with the same configuration as CI
+
+**Using pre-commit:**
+
+```bash
+pip install pre-commit
+pre-commit install
+
+# Run on all files
+pre-commit run --all-files
+
+# Run on staged files only
+pre-commit run
+```
+
+**Using prek:**
+
+```bash
+pip install prek
+prek install
+
+# Run on all files
+prek run --all-files
+
+# Run on staged files only
+prek run
+```
+
+Once installed, the hooks will run automatically on `git commit`.
+
+All code must pass formatting, linting, type checking, shellcheck, and tests before merging.
