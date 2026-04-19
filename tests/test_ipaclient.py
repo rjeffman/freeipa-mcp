@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Tests for IPA client exceptions and initialization."""
 
 import json

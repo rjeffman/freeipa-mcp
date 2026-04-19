@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Pytest configuration and shared fixtures."""
 
 import tempfile

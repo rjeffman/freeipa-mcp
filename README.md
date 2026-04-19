@@ -383,6 +383,10 @@ This project is licensed under the GNU General Public License v3.0. See [COPYING
 
 ## Contributing
 
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on licensing, sign-off requirements, AI-assisted contributions, and the contribution workflow.
+
+**Quick Start:**
+
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Install development dependencies (`pip install -e ".[dev]"`)
