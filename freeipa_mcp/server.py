@@ -114,21 +114,20 @@ CREATE_IPACONF_TOOL = Tool(
 LOGIN_TOOL = Tool(
     name="login",
     description=(
-        "Authenticate to a Kerberos realm to obtain a Ticket-Granting Ticket (TGT). "
-        "Provide username and password for non-interactive authentication. "
-        "The realm is auto-detected from the saved server "
-        "configuration if not provided."
+        "Authenticate to a Kerberos realm to obtain a TGT. "
+        "Opens a secure GTK4 dialog to obtain credentials interactively. "
+        "Password is never passed as a parameter for security reasons. "
+        "Requires a graphical display (DISPLAY or WAYLAND_DISPLAY). "
+        "The realm is auto-detected from saved server config if not provided."
     ),
     inputSchema={
         "type": "object",
         "properties": {
             "username": {
                 "type": "string",
-                "description": "Username or full principal (user@REALM)",
-            },
-            "password": {
-                "type": "string",
-                "description": "Password for authentication",
+                "description": (
+                    "Username or full principal (dialog pre-fills if provided)"
+                ),
             },
             "realm": {
                 "type": "string",
@@ -152,7 +151,8 @@ HEALTHCHECK_TOOL = Tool(
     name="healthcheck",
     description=(
         "Execute IPA healthcheck on a remote server via SSH (Kerberos auth). "
-        "Requires a valid Kerberos ticket and passwordless sudo on the target server."
+        "Requires a valid Kerberos ticket. A GUI dialog will prompt for the "
+        "sudo password unless passwordless sudo is configured on the server."
     ),
     inputSchema={
         "type": "object",
@@ -187,7 +187,10 @@ HEALTHCHECK_TOOL = Tool(
             },
             "passwordless": {
                 "type": "boolean",
-                "description": "Use passwordless sudo",
+                "description": (
+                    "Skip the sudo password prompt and use passwordless sudo. "
+                    "Requires NOPASSWD configured in sudoers on the target server."
+                ),
                 "default": False,
             },
             "output_format": {
@@ -214,7 +217,8 @@ LOAD_TOOLS_TOOL = Tool(
     description=(
         "Reload all available FreeIPA commands as MCP tools from the server schema. "
         "Automatically called by create_ipaconf. Also updates .claude/settings.json "
-        "with allowedTools entries for all *-find and *-show commands."
+        "with allowedTools entries for all *-find and *-show commands. "
+        "NOTE: create_ipaconf must be run first to configure the server."
     ),
     inputSchema={
         "type": "object",
@@ -295,7 +299,6 @@ async def _dispatch_tool(name: str, args: dict) -> str:
         if name == "login":
             return await login.execute(
                 username=args.get("username"),
-                password=args.get("password"),
                 realm=args.get("realm"),
                 renewable_lifetime=args.get("renewable_lifetime", "7d"),
                 ipa_confdir=args.get("ipa_confdir"),

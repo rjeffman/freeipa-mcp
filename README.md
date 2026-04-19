@@ -353,13 +353,18 @@ Configure the FreeIPA server connection. Validates the server FQDN, downloads an
 - After running `create_ipaconf`, all FreeIPA commands are automatically loaded as MCP tools (e.g., `user-add`, `user-show`, `group-find`, etc.). Each command includes full schema with arguments and options.
 
 #### `login`
-Authenticate to FreeIPA using Kerberos credentials. Supports both password-based and keytab authentication.
+Authenticate to FreeIPA using Kerberos credentials. Opens a secure GTK4 dialog to obtain credentials interactively.
 
 **Parameters:**
-- `username` (required): Kerberos principal username
-- `password` (optional): User password (if not using keytab)
-- `keytab_path` (optional): Path to keytab file
+- `username` (optional): Kerberos principal username (dialog will pre-fill if provided)
 - `realm` (optional): Kerberos realm (auto-detected if not provided)
+- `renewable_lifetime` (optional): Ticket renewable lifetime (default: `7d`)
+- `ipa_confdir` (optional): IPA config directory path
+
+**Security:**
+- Password is never passed as a parameter - it's always entered through a secure GUI dialog
+- Requires a graphical display (DISPLAY or WAYLAND_DISPLAY environment variable)
+- Requires GTK4 and PyGObject (`pip install -e ".[gui]"` or install system packages)
 
 #### `ping`
 Test FreeIPA server connectivity and retrieve version information.

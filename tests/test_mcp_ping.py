@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 async def test_ping_returns_formatted_summary():
