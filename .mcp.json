@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "freeipa-mcp": {
+      "type": "stdio",
+      "command": "freeipa-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}
