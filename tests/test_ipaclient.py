@@ -90,7 +90,7 @@ def test_client_init_basic(mock_server):
     assert client._json_url == f"https://{mock_server}/ipa/json"
     # When verify_ssl=True, _verify_ssl becomes the path to the CA cert
     assert isinstance(client._verify_ssl, str)
-    assert client._verify_ssl.endswith('.crt')
+    assert client._verify_ssl.endswith(".crt")
     assert client._schema is None
 
 
@@ -141,7 +141,9 @@ def test_make_request_basic(mock_auth, mock_server):
     assert len(responses.calls) == 1
 
     # Verify request payload
-    request_body = json.loads(responses.calls[0].request.body)
+    body = responses.calls[0].request.body
+    assert body is not None
+    request_body = json.loads(body)
     assert request_body["method"] == "ping"
     assert request_body["params"] == [[], {"version": "2.251"}]
     assert request_body["id"] == 0
@@ -161,7 +163,9 @@ def test_make_request_with_args(mock_auth, mock_server):
     client = IPAClient(mock_server)
     client._make_request("user_show", args=["admin"])
 
-    request_body = json.loads(responses.calls[0].request.body)
+    body = responses.calls[0].request.body
+    assert body is not None
+    request_body = json.loads(body)
     assert request_body["params"][0] == ["admin"]
 
 
@@ -179,7 +183,9 @@ def test_make_request_with_options(mock_auth, mock_server):
     client = IPAClient(mock_server)
     client._make_request("test", options={"all": True, "raw": False})
 
-    request_body = json.loads(responses.calls[0].request.body)
+    body = responses.calls[0].request.body
+    assert body is not None
+    request_body = json.loads(body)
     assert request_body["params"][1]["all"] is True
     assert request_body["params"][1]["raw"] is False
     assert request_body["params"][1]["version"] == "2.251"
@@ -199,7 +205,9 @@ def test_make_request_version_override(mock_auth, mock_server):
     client = IPAClient(mock_server)
     client._make_request("test", options={"version": "2.250"})
 
-    request_body = json.loads(responses.calls[0].request.body)
+    body = responses.calls[0].request.body
+    assert body is not None
+    request_body = json.loads(body)
     assert request_body["params"][1]["version"] == "2.250"
 
 
@@ -333,7 +341,9 @@ def test_command_with_args(mock_auth, mock_server):
     client = IPAClient(mock_server)
     client.command("user_show", "admin")
 
-    request_body = json.loads(responses.calls[0].request.body)
+    body = responses.calls[0].request.body
+    assert body is not None
+    request_body = json.loads(body)
     assert request_body["method"] == "user_show"
     assert request_body["params"][0] == ["admin"]
 
@@ -356,7 +366,9 @@ def test_command_with_kwargs(mock_auth, mock_server):
     client = IPAClient(mock_server)
     client.command("user_find", uid="test", sizelimit=10)
 
-    request_body = json.loads(responses.calls[0].request.body)
+    body = responses.calls[0].request.body
+    assert body is not None
+    request_body = json.loads(body)
     assert request_body["params"][1]["uid"] == "test"
     assert request_body["params"][1]["sizelimit"] == 10
     assert request_body["params"][1]["version"] == "2.251"
@@ -376,7 +388,9 @@ def test_command_with_args_and_kwargs(mock_auth, mock_server):
     client = IPAClient(mock_server)
     client.command("group_show", "testgroup", all=True, raw=False)
 
-    request_body = json.loads(responses.calls[0].request.body)
+    body = responses.calls[0].request.body
+    assert body is not None
+    request_body = json.loads(body)
     assert request_body["params"][0] == ["testgroup"]
     assert request_body["params"][1]["all"] is True
     assert request_body["params"][1]["raw"] is False
@@ -816,7 +830,9 @@ def test_get_ca_cert_uses_cached(mock_server, tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
     # Pre-populate cache
-    ca_cert_content = "-----BEGIN CERTIFICATE-----\nCACHED CERT\n-----END CERTIFICATE-----"
+    ca_cert_content = (
+        "-----BEGIN CERTIFICATE-----\nCACHED CERT\n-----END CERTIFICATE-----"
+    )
     cert_path = cache_dir / f"{mock_server}.crt"
     cert_path.write_text(ca_cert_content)
 

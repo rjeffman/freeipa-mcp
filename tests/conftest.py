@@ -4,7 +4,6 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -135,7 +134,7 @@ def mock_ping_response():
 @pytest.fixture
 def mock_ca_cert():
     """Mock CA certificate file."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.crt', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".crt", delete=False) as f:
         f.write("-----BEGIN CERTIFICATE-----\n")
         f.write("MOCK CERTIFICATE DATA\n")
         f.write("-----END CERTIFICATE-----\n")
@@ -154,6 +153,7 @@ def mock_get_ca_cert(mock_ca_cert, monkeypatch):
     This prevents tests from making real HTTP requests to download
     CA certificates during client initialization.
     """
+
     def _mock_get_ca_cert(self):
         return mock_ca_cert
 
