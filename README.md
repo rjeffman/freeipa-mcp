@@ -200,7 +200,7 @@ Create a new IPA client instance.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `server` | `str` | required | IPA server hostname (e.g., `"ipa.example.com"`) |
-| `verify_ssl` | `bool` | `True` | Whether to verify SSL certificates |
+| `verify_ssl` | `bool` | `True` | Whether to verify SSL certificates. When `True`, the CA certificate is automatically downloaded from `http://{server}/ipa/config/ca.crt` and cached in `~/.cache/freeipa-mcp-py/certs/` for reuse across sessions. |
 
 ### Methods
 
@@ -232,6 +232,20 @@ Retrieve help information. Behavior depends on the `topic` parameter:
 #### `export_schema() -> dict`
 
 Export the full structured schema for MCP tool generation. Returns a dictionary with `topics` and `commands` keys, where each command includes its positional arguments and keyword options with type information.
+
+### SSL Certificate Handling
+
+By default, the client automatically handles SSL certificate verification:
+
+1. **Automatic CA Certificate Download**: On first connection, the CA certificate is downloaded from `http://{server}/ipa/config/ca.crt`
+2. **Persistent Caching**: Certificates are cached in `~/.cache/freeipa-mcp-py/certs/{server}.crt`
+3. **Reuse Across Sessions**: Subsequent connections reuse the cached certificate without re-downloading
+
+This eliminates `InsecureRequestWarning` warnings while maintaining security. To disable SSL verification (not recommended for production):
+
+```python
+client = IPAClient("ipa.example.com", verify_ssl=False)
+```
 
 ## Error Handling
 

@@ -1,5 +1,9 @@
 """Pytest configuration and shared fixtures."""
 
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 
@@ -124,3 +128,31 @@ def mock_ping_response():
         },
         "error": None,
     }
+
+
+@pytest.fixture
+def mock_ca_cert():
+    """Mock CA certificate file."""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.crt', delete=False) as f:
+        f.write("-----BEGIN CERTIFICATE-----\n")
+        f.write("MOCK CERTIFICATE DATA\n")
+        f.write("-----END CERTIFICATE-----\n")
+        cert_path = f.name
+
+    yield cert_path
+
+    # Cleanup
+    Path(cert_path).unlink(missing_ok=True)
+
+
+@pytest.fixture(autouse=True)
+def mock_get_ca_cert(mock_ca_cert, monkeypatch):
+    """Automatically mock CA cert downloads for all tests.
+
+    This prevents tests from making real HTTP requests to download
+    CA certificates during client initialization.
+    """
+    def _mock_get_ca_cert(self):
+        return mock_ca_cert
+
+    monkeypatch.setattr("ipaclient.IPAClient._get_ca_cert", _mock_get_ca_cert)

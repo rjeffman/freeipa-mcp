@@ -1,6 +1,7 @@
 """Tests for IPA client exceptions and initialization."""
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -85,7 +86,9 @@ def test_client_init_basic(mock_server):
     assert client._server == mock_server
     assert client._base_url == f"https://{mock_server}"
     assert client._json_url == f"https://{mock_server}/ipa/json"
-    assert client._verify_ssl is True
+    # When verify_ssl=True, _verify_ssl becomes the path to the CA cert
+    assert isinstance(client._verify_ssl, str)
+    assert client._verify_ssl.endswith('.crt')
     assert client._schema is None
 
 
@@ -98,15 +101,15 @@ def test_client_init_no_ssl_verify(mock_server):
 def test_client_init_url_construction():
     """Test URL construction for various server formats."""
     # Just hostname
-    client = IPAClient("ipa.example.com")
+    client = IPAClient("ipa.example.com", verify_ssl=False)
     assert client._base_url == "https://ipa.example.com"
 
     # Hostname with domain
-    client = IPAClient("ipa.corp.example.com")
+    client = IPAClient("ipa.corp.example.com", verify_ssl=False)
     assert client._base_url == "https://ipa.corp.example.com"
 
     # IP address
-    client = IPAClient("192.168.1.100")
+    client = IPAClient("192.168.1.100", verify_ssl=False)
     assert client._base_url == "https://192.168.1.100"
 
 
@@ -752,3 +755,143 @@ def test_export_schema_caching(mock_auth, mock_server, mock_schema):
     assert len(responses.calls) == 1
 
     assert result1 == result2
+
+
+# ============================================================================
+# CA Certificate Tests
+# ============================================================================
+
+
+@responses.activate
+def test_get_ca_cert_downloads_and_caches(mock_server, tmp_path, monkeypatch):
+    """Test that CA certificate is downloaded and cached."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    cache_dir = tmp_path / ".cache" / "freeipa-mcp-py" / "certs"
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Mock CA certificate content
+    ca_cert_content = """-----BEGIN CERTIFICATE-----
+MIIDNTCCAh2gAwIBAgIBATANBgkqhkiG9w0BAQsFADA3MRUwEwYDVQQKDAxJUEEu
+RVBBU2VMSU5FMR4wHAYDVQQDDBVDZXJ0aWZpY2F0ZSBBdXRob3JpdHkwHhcNMjQw
+-----END CERTIFICATE-----"""
+
+    # Mock HTTP GET for CA cert download
+    responses.add(
+        responses.GET,
+        f"http://{mock_server}/ipa/config/ca.crt",
+        body=ca_cert_content,
+        status=200,
+    )
+
+    # Create client (should download cert)
+    client = IPAClient(mock_server, verify_ssl=True)
+
+    # Verify cert was downloaded
+    assert len(responses.calls) == 1
+    assert responses.calls[0].request.url == f"http://{mock_server}/ipa/config/ca.crt"
+
+    # Verify cert was cached
+    cert_path = cache_dir / f"{mock_server}.crt"
+    assert cert_path.exists()
+    assert ca_cert_content in cert_path.read_text()
+
+    # Verify client uses the cert path
+    assert client._verify_ssl == str(cert_path)
+
+
+@responses.activate
+def test_get_ca_cert_uses_cached(mock_server, tmp_path, monkeypatch):
+    """Test that cached CA certificate is reused."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    cache_dir = tmp_path / ".cache" / "freeipa-mcp-py" / "certs"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Pre-populate cache
+    ca_cert_content = "-----BEGIN CERTIFICATE-----\nCACHED CERT\n-----END CERTIFICATE-----"
+    cert_path = cache_dir / f"{mock_server}.crt"
+    cert_path.write_text(ca_cert_content)
+
+    # Create client (should NOT download cert)
+    client = IPAClient(mock_server, verify_ssl=True)
+
+    # Verify no HTTP requests were made
+    assert len(responses.calls) == 0
+
+    # Verify client uses the cached cert
+    assert client._verify_ssl == str(cert_path)
+
+
+@responses.activate
+def test_get_ca_cert_download_failure(mock_server, tmp_path, monkeypatch):
+    """Test handling of CA certificate download failure."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Mock failed CA cert download
+    responses.add(
+        responses.GET,
+        f"http://{mock_server}/ipa/config/ca.crt",
+        status=404,
+    )
+
+    # Should raise IPAConnectionError
+    with pytest.raises(IPAConnectionError) as exc_info:
+        IPAClient(mock_server, verify_ssl=True)
+
+    assert "Failed to download CA certificate" in str(exc_info.value)
+    assert mock_server in str(exc_info.value)
+
+
+def test_verify_ssl_false_skips_ca_cert(mock_server, monkeypatch):
+    """Test that verify_ssl=False skips CA certificate download."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Create client with verify_ssl=False
+    client = IPAClient(mock_server, verify_ssl=False)
+
+    # Should not attempt to get CA cert
+    assert client._verify_ssl is False
+
+
+@responses.activate
+@patch("ipaclient.HTTPSPNEGOAuth")
+def test_ssl_verification_with_ca_cert(mock_auth, mock_server, tmp_path, monkeypatch):
+    """Test that SSL verification uses the CA certificate."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    cache_dir = tmp_path / ".cache" / "freeipa-mcp-py" / "certs"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Pre-populate cache
+    cert_path = cache_dir / f"{mock_server}.crt"
+    cert_path.write_text("-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----")
+
+    # Mock JSON-RPC response
+    responses.add(
+        responses.POST,
+        f"https://{mock_server}/ipa/json",
+        json={"result": {"summary": "OK"}, "error": None},
+        status=200,
+    )
+
+    # Create client and make request
+    client = IPAClient(mock_server, verify_ssl=True)
+    result = client._make_request("ping")
+
+    assert result == {"summary": "OK"}
+    # The request should have been made with verify=cert_path
+    # (We can't easily verify this with responses, but the test ensures no errors)

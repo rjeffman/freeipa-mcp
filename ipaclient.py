@@ -83,7 +83,9 @@ Dependencies:
 """
 
 import json
-from typing import Any, Dict, List, Optional
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 from requests_gssapi import HTTPSPNEGOAuth
@@ -207,12 +209,57 @@ class IPAClient:
         Args:
             server: IPA server hostname (e.g., 'ipa.example.com')
             verify_ssl: Whether to verify SSL certificates (default: True)
+                       If True, the CA certificate will be automatically downloaded
+                       and cached from the server.
         """
         self._server = server
         self._base_url = f"https://{server}"
         self._json_url = f"{self._base_url}/ipa/json"
-        self._verify_ssl = verify_ssl
+        self._verify_ssl: Union[bool, str] = verify_ssl
         self._schema: Optional[Dict[str, Any]] = None
+
+        # If SSL verification is enabled, get the CA certificate
+        if verify_ssl:
+            self._verify_ssl = self._get_ca_cert()
+
+    def _get_ca_cert(self) -> str:
+        """Get the IPA server CA certificate path.
+
+        Downloads and caches the CA certificate from the IPA server if not
+        already cached. The certificate is stored in ~/.cache/freeipa-mcp-py/certs/
+
+        Returns:
+            Path to the cached CA certificate file
+
+        Raises:
+            IPAConnectionError: Failed to download CA certificate
+        """
+        # Create cache directory
+        cache_dir = Path.home() / ".cache" / "freeipa-mcp-py" / "certs"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Certificate cache path
+        cert_path = cache_dir / f"{self._server}.crt"
+
+        # Return cached certificate if it exists
+        if cert_path.exists():
+            return str(cert_path)
+
+        # Download CA certificate from server
+        ca_url = f"http://{self._server}/ipa/config/ca.crt"
+        try:
+            response = requests.get(ca_url, timeout=10)
+            response.raise_for_status()
+
+            # Save certificate to cache
+            cert_path.write_text(response.text)
+            return str(cert_path)
+
+        except requests.exceptions.RequestException as e:
+            raise IPAConnectionError(
+                f"Failed to download CA certificate from {ca_url}: {e}",
+                data={"server": self._server, "url": ca_url},
+            )
 
     def _make_request(
         self,
