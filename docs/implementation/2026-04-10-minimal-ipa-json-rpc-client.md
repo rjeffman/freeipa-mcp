@@ -2063,7 +2063,7 @@ addopts = -m "not integration"
 
 - [ ] **Step 3: Document integration test usage**
 
-Add to project root `TESTING.md`:
+Add to `docs/testing.md`:
 
 ```markdown
 # Testing
@@ -2131,7 +2131,7 @@ Create file if it doesn't exist, add integration marker.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add tests/test_ipaclient_integration.py pytest.ini TESTING.md
+git add tests/test_ipaclient_integration.py pytest.ini docs/testing.md
 git commit -m "test: add integration tests for live server testing"
 ```
 
@@ -2379,7 +2379,7 @@ kinit admin@DEMO1.FREEIPA.ORG
 pytest -m integration -v
 ```
 
-See [TESTING.md](TESTING.md) for details.
+See [testing.md](docs/testing.md) for details.
 
 ## Requirements
 

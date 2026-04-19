@@ -521,7 +521,7 @@ All design requirements were successfully implemented:
 - ✅ Schema export for MCP tool generation
 - ✅ 35 unit tests (100% pass rate)
 - ✅ Integration tests for live server validation
-- ✅ Comprehensive documentation (README.md, TESTING.md)
+- ✅ Comprehensive documentation (README.md, docs/testing.md)
 
 ### Actual Implementation Size
 
@@ -561,7 +561,7 @@ These fixes ensure the client works with both mock test data and real IPA server
 - `tests/test_ipaclient_integration.py` - Integration tests
 - `tests/conftest.py` - Shared test fixtures
 - `README.md` - User documentation
-- `TESTING.md` - Testing instructions
+- `docs/testing.md` - Testing instructions
 - `pytest.ini` - Pytest configuration
 - `requirements.txt` - Runtime dependencies
 - `requirements-dev.txt` - Development dependencies

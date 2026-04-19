@@ -360,7 +360,7 @@ pytest tests/test_ipaclient.py -v
 
 ### Integration Tests
 
-Integration tests require a live IPA server. See [TESTING.md](TESTING.md) for setup instructions.
+Integration tests require a live IPA server. See [testing.md](docs/testing.md) for setup instructions.
 
 ```bash
 # Skip integration tests (default)
@@ -383,7 +383,7 @@ This project is licensed under the GNU General Public License v3.0. See [COPYING
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on licensing, sign-off requirements, AI-assisted contributions, and the contribution workflow.
+Contributions are welcome! Please read [contributing.md](docs/contributing.md) for detailed guidelines on licensing, sign-off requirements, AI-assisted contributions, and the contribution workflow.
 
 **Quick Start:**
 

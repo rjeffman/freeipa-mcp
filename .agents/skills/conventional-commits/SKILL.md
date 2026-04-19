@@ -260,7 +260,7 @@ When working on a project, check for additional requirements:
 4. **Scope conventions**: Project-specific scope names
 5. **Additional types**: Custom types beyond the standard set
 
-**Always check the project's CONTRIBUTING.md file for additional requirements.**
+**Always check the project's `docs/contributing.md` file for additional requirements.**
 
 ## Common Mistakes to Avoid
 
