@@ -45,7 +45,7 @@ def _build_principal(username: str, realm: str) -> str:
     return f"{username}@{realm}"
 
 
-def _get_available_principals() -> list[dict[str, str]]:
+def _get_available_principals() -> list[dict[str, str | bool]]:
     """
     Get list of cached Kerberos principals with renewal info.
 

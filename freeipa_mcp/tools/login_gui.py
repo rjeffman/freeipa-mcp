@@ -14,7 +14,7 @@ def has_display() -> bool:
 def get_login_credentials(
     username: str | None = None,
     realm: str | None = None,
-    available_principals: list[dict[str, str]] | None = None,
+    available_principals: list[dict[str, str | bool]] | None = None,
 ) -> tuple[str, str]:
     """
     Show a GTK4 dialog to obtain FreeIPA login credentials interactively.

@@ -13,7 +13,7 @@ Skip if no server available: pytest -m "not integration"
 
 import pytest
 
-from freeipa_mcp.ipaclient import IPAThinClient, IPAConnectionError
+from freeipa_mcp.ipaclient import IPAConnectionError, IPAThinClient
 
 # Mark all tests in this file as integration tests
 pytestmark = pytest.mark.integration

@@ -44,8 +44,8 @@ def test_get_client_raises_when_no_config():
 
 
 def test_get_client_returns_ipaclient():
-    from freeipa_mcp.tools.common import get_client
     from freeipa_mcp.ipaclient import IPAThinClient
+    from freeipa_mcp.tools.common import get_client
 
     with (
         patch(
