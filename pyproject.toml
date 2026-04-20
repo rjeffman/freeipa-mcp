@@ -27,6 +27,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-asyncio>=0.21.0",
+    "responses>=0.20.0",
     "ruff>=0.15.10",
     "ty>=0.0.29",
 ]
@@ -58,10 +59,75 @@ target-version = "py310"
 [tool.ruff.lint]
 # Enable PEP8 rules
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
+    "ARG", # flake8-unused-arguments
+    "B",   # flake8-bugbear
+    "BLE", # flake8-blind-except
+    "C90", # mccabe complexity
+    "D",   # pydocstyle
+    "E",   # pycodestyle
     "F",   # pyflakes
     "I",   # isort
+    "N",   # pep8-naming
+    "PIE", # flake8-pie
+    "PL",  # Pylint
+    "PTH", # flake8-use-pathlib
+    "Q",   # flake8-quotes
+    "S",   # flake8-bandit
+    "SLF", # flake8-self
+    "TRY", # tryceratops
+    "W",   # pycodestyle
+    "RUF001", # ambiguous-unicode-character-string
+    "RUF002", # ambiguous-unicode-character-docstring
+    "RUF003", # ambiguous-unicode-character-comment
+]
+ignore = [
+    "ARG001",  # unused-function-argument
+    "ARG002",  # unused-method-argument
+    "ARG003",  # unused-class-method-argument
+    "ARG004",  # unused-static-method-argument
+    "ARG005",  # unused-lambda-argument
+    "B904",    # reraise-no-cause (raise-missing-from)
+    "BLE001",  # blind-except (broad-exception-caught)
+    "C901",    # function-is-too-complex (mccabe complexity)
+    "D100",    # missing-module-docstring
+    "D103",    # missing-function-docstring
+    "D104",    # missing-docstring-in-public-package
+    "D107",    # missing-docstring-in-__init__
+    "D203",    # one-blank-line-before-class
+    "D205",    # blank-line-after-summary
+    "D212",    # multi-line-summary-first-line
+    "D213",    # multi-line-summary-first-line
+    "D301",    # use-r-prefix-for-backslashed-content
+    "D400",    # first-line-should-end-with-period
+    "D403",    # first-line-should-end-with-a-period
+    "D413",    # missing-blank-line-after-last-section
+    "F811",    # redefined-while-unused (redefined-outer-name)
+    "PIE790",  # unnecessary-placeholder (unnecessary-pass)
+    "PLC0415", # import-outside-toplevel
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
+    "PLR0913", # too-many-arguments
+    "PLR0914", # too-many-locals
+    "PLR0915", # too-many-statements
+    "PLR0917", # too-many-positional-arguments
+    "PLR2004", # magic-value-comparison
+    "PLW0603", # global-statement
+    "PLW1510", # subprocess-run-without-check
+    "PLW1514", # unspecified-encoding
+    "PLW2901", # redefined-loop-name (loop variable overwritten)
+    "S101",    # use-of-assert-detected
+    "S105",    # hardcoded-password-string
+    "S106",    # hardcoded-password-func-arg
+    "S110",    # try-except-pass
+    "S113",    # request-without-timeout (missing-timeout)
+    "S602",    # shell-injection-subprocess (subprocess with shell=True)
+    "S603",    # subprocess-without-shell-equals-true
+    "S607",    # start-process-with-partial-path
+    "SLF001",  # private-member-access (protected-access)
+    "TRY003",  # raise-vanilla-args (long messages outside exception class)
+    "TRY300",  # try-consider-else
+    "TRY301",  # raise-within-try
+    "TRY400",  # error-instead-of-exception
 ]
 
 [[tool.ty.overrides]]
@@ -76,33 +142,6 @@ include = ["freeipa_mcp/**"]
 [tool.ty.overrides.rules]
 # Ignore unresolved imports for external packages without type stubs
 unresolved-import = "ignore"
-
-[tool.pylint.main]
-disable = [
-    "missing-module-docstring",
-    "missing-function-docstring",
-    "import-outside-toplevel",
-    "protected-access",
-    "unused-argument",
-    "redefined-outer-name",
-    "import-error",
-    "duplicate-code",
-    "too-many-locals",
-    "too-many-branches",
-    "too-many-statements",
-    "too-many-arguments",
-    "too-many-positional-arguments",
-    "too-many-return-statements",
-    "too-many-lines",
-    "subprocess-run-check",
-    "broad-exception-caught",
-    "raise-missing-from",
-    "try-except-raise",
-    "global-statement",
-    "unnecessary-pass",
-    "missing-timeout",
-    "unspecified-encoding",
-]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

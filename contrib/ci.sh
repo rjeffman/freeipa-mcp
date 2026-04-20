@@ -36,14 +36,6 @@ check_linter() {
     echo -e "${GREEN}Running ruff check...${NC}"
     ruff check .
     echo -e "${GREEN}✓ Linting complete${NC}"
-    if command -v pylint >/dev/null 2>&1
-    then
-        echo -e "${GREEN}Running pylint...${NC}"
-        pylint .
-        echo -e "${GREEN}✓ Linting with pylint completed${NC}"
-    else
-        echo -e "${YELLOW}SKIP: 'pylint' is not available.${NC}"
-    fi
 }
 
 check_type() {
