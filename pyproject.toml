@@ -65,6 +65,13 @@ include = ["tests/**"]
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"
 
+[[tool.ty.overrides]]
+include = ["freeipa_mcp/**"]
+
+[tool.ty.overrides.rules]
+# Ignore unresolved imports for external packages without type stubs
+unresolved-import = "ignore"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [

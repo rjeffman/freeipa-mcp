@@ -93,7 +93,7 @@ from requests_gssapi import HTTPSPNEGOAuth
 
 __version__ = "0.1.0"
 __all__ = [
-    "IPAClient",
+    "IPAThinClient",
     "IPAError",
     "IPAConnectionError",
     "IPAAuthenticationError",

@@ -11,11 +11,11 @@ import responses
 
 from freeipa_mcp.ipaclient import (
     IPAAuthenticationError,
-    IPAThinClient,
     IPAConnectionError,
     IPAError,
     IPASchemaError,
     IPAServerError,
+    IPAThinClient,
     IPAValidationError,
 )
 
