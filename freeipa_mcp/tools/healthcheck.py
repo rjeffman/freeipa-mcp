@@ -31,11 +31,16 @@ def _exec_ssh(
         [
             "ssh",
             "-T",
-            "-o", "GSSAPIAuthentication=yes",
-            "-o", "GSSAPIDelegateCredentials=yes",
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "BatchMode=yes",
-            "-o", "ConnectTimeout=30",
+            "-o",
+            "GSSAPIAuthentication=yes",
+            "-o",
+            "GSSAPIDelegateCredentials=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=30",
             f"{username}@{hostname}",
             remote,
         ],
@@ -116,10 +121,7 @@ def _format_entry(entry: dict) -> str:
     result = entry.get("result", "")
     kw = entry.get("kw", {})
     return (
-        f"### {source} - {check}\n\n"
-        f"**Status:** {result}\n\n"
-        f"{_format_kw(kw)}"
-        "\n---\n\n"
+        f"### {source} - {check}\n\n**Status:** {result}\n\n{_format_kw(kw)}\n---\n\n"
     )
 
 
@@ -234,10 +236,18 @@ async def execute(
     password: str | None = None
     if not passwordless:
         from .sudo_gui import get_sudo_password
+
         password = await asyncio.to_thread(get_sudo_password, username, server_hostname)
 
     return await asyncio.to_thread(
         _healthcheck_blocking,
-        server_hostname, username, mode, source, check,
-        failures_only, severity, password, output_format,
+        server_hostname,
+        username,
+        mode,
+        source,
+        check,
+        failures_only,
+        severity,
+        password,
+        output_format,
     )

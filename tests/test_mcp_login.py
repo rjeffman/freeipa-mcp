@@ -6,16 +6,19 @@ import pytest
 
 def test_build_principal_adds_realm():
     from freeipa_mcp.tools.login import _build_principal
+
     assert _build_principal("admin", "EXAMPLE.COM") == "admin@EXAMPLE.COM"
 
 
 def test_build_principal_preserves_full_principal():
     from freeipa_mcp.tools.login import _build_principal
+
     assert _build_principal("admin@OTHER.COM", "EXAMPLE.COM") == "admin@OTHER.COM"
 
 
 def test_detect_realm_from_saved_hostname():
     from freeipa_mcp.tools.login import _detect_realm
+
     with (
         patch(
             "freeipa_mcp.tools.login.load_server_config", return_value="ipa.example.com"
@@ -28,14 +31,18 @@ def test_detect_realm_from_saved_hostname():
 
 def test_detect_realm_no_config_raises():
     from freeipa_mcp.tools.login import _detect_realm
-    with patch("freeipa_mcp.tools.login.load_server_config", return_value=None), \
-         patch("freeipa_mcp.tools.login._read_realm_from_config", return_value=None):
+
+    with (
+        patch("freeipa_mcp.tools.login.load_server_config", return_value=None),
+        patch("freeipa_mcp.tools.login._read_realm_from_config", return_value=None),
+    ):
         with pytest.raises(ValueError, match="Cannot detect Kerberos realm"):
             _detect_realm(None)
 
 
 def test_login_no_username_no_display_raises():
     from freeipa_mcp.tools.login import _login_blocking
+
     with (
         patch("freeipa_mcp.tools.login._detect_realm", return_value="EXAMPLE.COM"),
         patch("freeipa_mcp.tools.login.has_display", return_value=False),
@@ -46,6 +53,7 @@ def test_login_no_username_no_display_raises():
 
 def test_login_with_username_no_display_raises():
     from freeipa_mcp.tools.login import _login_blocking
+
     with (
         patch("freeipa_mcp.tools.login._detect_realm", return_value="EXAMPLE.COM"),
         patch("freeipa_mcp.tools.login.has_display", return_value=False),
@@ -56,6 +64,7 @@ def test_login_with_username_no_display_raises():
 
 def test_kinit_failure_raises():
     from freeipa_mcp.tools.login import _kinit
+
     mock_result = MagicMock()
     mock_result.returncode = 1
     mock_result.stderr = "kinit: Clients credentials have been revoked"
@@ -70,12 +79,14 @@ async def test_execute_success():
         return_value="Authentication successful\nPrincipal: admin@EXAMPLE.COM",
     ):
         from freeipa_mcp.tools.login import execute
+
         result = await execute(username="admin", realm="EXAMPLE.COM")
     assert "Authentication successful" in result
 
 
 def test_login_with_gui_success():
     from freeipa_mcp.tools.login import _login_blocking
+
     mock_result_klist_a = MagicMock()
     mock_result_klist_a.returncode = 1  # No cached tickets
     mock_result_klist_a.stdout = ""
@@ -95,10 +106,17 @@ def test_login_with_gui_success():
     with (
         patch("freeipa_mcp.tools.login._detect_realm", return_value="EXAMPLE.COM"),
         patch("freeipa_mcp.tools.login.has_display", return_value=True),
-        patch("freeipa_mcp.tools.login.get_login_credentials", return_value=("admin", "secret")),
+        patch(
+            "freeipa_mcp.tools.login.get_login_credentials",
+            return_value=("admin", "secret"),
+        ),
         patch("subprocess.run") as mock_run,
     ):
-        mock_run.side_effect = [mock_result_klist_a, mock_result_kinit, mock_result_klist]
+        mock_run.side_effect = [
+            mock_result_klist_a,
+            mock_result_kinit,
+            mock_result_klist,
+        ]
         result = _login_blocking("admin", None, "7d", None)
     assert "Authentication successful" in result
     assert "admin@EXAMPLE.COM" in result
@@ -106,6 +124,7 @@ def test_login_with_gui_success():
 
 def test_get_available_principals_parses_klist():
     from freeipa_mcp.tools.login import _get_available_principals
+
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = (
@@ -132,6 +151,7 @@ def test_get_available_principals_parses_klist():
 
 def test_try_renew_ticket_success():
     from freeipa_mcp.tools.login import _try_renew_ticket
+
     mock_result = MagicMock()
     mock_result.returncode = 0
 
@@ -141,6 +161,7 @@ def test_try_renew_ticket_success():
 
 def test_try_renew_ticket_failure():
     from freeipa_mcp.tools.login import _try_renew_ticket
+
     mock_result = MagicMock()
     mock_result.returncode = 1
 
@@ -150,6 +171,7 @@ def test_try_renew_ticket_failure():
 
 def test_login_with_renewable_ticket_renews():
     from freeipa_mcp.tools.login import _login_blocking
+
     mock_result_klist_a = MagicMock()
     mock_result_klist_a.returncode = 0
     mock_result_klist_a.stdout = (
@@ -175,10 +197,17 @@ def test_login_with_renewable_ticket_renews():
     with (
         patch("freeipa_mcp.tools.login._detect_realm", return_value="EXAMPLE.COM"),
         patch("freeipa_mcp.tools.login.has_display", return_value=True),
-        patch("freeipa_mcp.tools.login.get_login_credentials", return_value=("admin", "secret")),
+        patch(
+            "freeipa_mcp.tools.login.get_login_credentials",
+            return_value=("admin", "secret"),
+        ),
         patch("subprocess.run") as mock_run,
     ):
-        mock_run.side_effect = [mock_result_klist_a, mock_result_renew, mock_result_klist]
+        mock_run.side_effect = [
+            mock_result_klist_a,
+            mock_result_renew,
+            mock_result_klist,
+        ]
         result = _login_blocking("admin", None, "7d", None)
 
     assert "ticket renewed" in result

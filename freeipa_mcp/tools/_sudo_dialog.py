@@ -14,6 +14,7 @@ Exit codes:
   2  — wrong number of arguments
   3  — GTK4 / python3-gobject not available or display cannot be opened
 """
+
 import sys
 
 _PASSWORDLESS_SENTINEL = "__PASSWORDLESS__"
@@ -28,6 +29,7 @@ def main() -> None:
 
     try:
         import gi
+
         gi.require_version("Gtk", "4.0")
         gi.require_version("GLib", "2.0")
         from gi.repository import GLib, Gtk
@@ -58,9 +60,7 @@ def main() -> None:
     vbox.set_margin_start(20)
     vbox.set_margin_end(20)
 
-    context = Gtk.Label(
-        label=f"Sudo access required for:\n{username}@{hostname}"
-    )
+    context = Gtk.Label(label=f"Sudo access required for:\n{username}@{hostname}")
     context.set_halign(Gtk.Align.START)
     vbox.append(context)
 

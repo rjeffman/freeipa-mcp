@@ -38,6 +38,7 @@ def get_login_credentials(
         )
 
     import json
+
     args = [sys.executable, str(_DIALOG_SCRIPT)]
     if username:
         args.append(username)

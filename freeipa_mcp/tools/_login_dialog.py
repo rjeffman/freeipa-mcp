@@ -14,6 +14,7 @@ Exit codes:
   2  — invalid arguments
   3  — GTK4 / python3-gobject not available or display cannot be opened
 """
+
 import json
 import sys
 
@@ -38,6 +39,7 @@ def main() -> None:
 
     try:
         import gi
+
         gi.require_version("Gtk", "4.0")
         gi.require_version("GLib", "2.0")
         from gi.repository import GLib, Gtk

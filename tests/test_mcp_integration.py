@@ -5,6 +5,7 @@ Requires:
 - A live FreeIPA server at FREEIPA_TEST_SERVER env var (default: ipa.demo1.freeipa.org)
 - A valid Kerberos ticket: kinit admin@DEMO1.FREEIPA.ORG
 """
+
 import os
 
 import pytest

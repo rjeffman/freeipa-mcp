@@ -51,9 +51,7 @@ def _get_available_principals() -> list[dict[str, str]]:
 
     Returns list of dicts with 'principal' and 'renewable' keys.
     """
-    result = subprocess.run(
-        ["klist", "-A"], capture_output=True, text=True, timeout=10
-    )
+    result = subprocess.run(["klist", "-A"], capture_output=True, text=True, timeout=10)
     if result.returncode != 0:
         return []
 
@@ -68,19 +66,23 @@ def _get_available_principals() -> list[dict[str, str]]:
         elif "renew until" in line.lower():
             is_renewable = True
         elif line.startswith("Ticket cache:") and current_principal:
-            principals.append({
-                "principal": current_principal,
-                "renewable": is_renewable,
-            })
+            principals.append(
+                {
+                    "principal": current_principal,
+                    "renewable": is_renewable,
+                }
+            )
             current_principal = None
             is_renewable = False
 
     # Handle last principal if file ends
     if current_principal:
-        principals.append({
-            "principal": current_principal,
-            "renewable": is_renewable,
-        })
+        principals.append(
+            {
+                "principal": current_principal,
+                "renewable": is_renewable,
+            }
+        )
 
     return principals
 
@@ -115,9 +117,7 @@ def _kinit(principal: str, password: str, renewable_lifetime: str) -> None:
 
 
 def _validate_tgt(principal: str) -> dict[str, str]:
-    result = subprocess.run(
-        ["klist"], capture_output=True, text=True, timeout=10
-    )
+    result = subprocess.run(["klist"], capture_output=True, text=True, timeout=10)
     if result.returncode != 0:
         raise RuntimeError("No valid Kerberos ticket found after kinit")
     info: dict[str, str] = {}

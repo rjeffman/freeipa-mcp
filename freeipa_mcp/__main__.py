@@ -4,6 +4,7 @@ import asyncio
 
 def main() -> None:
     from .server import serve
+
     asyncio.run(serve())
 
 

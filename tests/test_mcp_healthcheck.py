@@ -4,17 +4,29 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-SAMPLE_HEALTHCHECK_JSON = json.dumps([
-    {"source": "ipahealthcheck.ipa.certs", "check": "IPADogtagCertsMatchCheck",
-     "result": "SUCCESS", "uuid": "abc", "kw": {}},
-    {"source": "ipahealthcheck.ipa.certs", "check": "IPACertExpiration",
-     "result": "ERROR", "uuid": "def",
-     "kw": {"key": "caSigningCert", "days": 30}},
-])
+SAMPLE_HEALTHCHECK_JSON = json.dumps(
+    [
+        {
+            "source": "ipahealthcheck.ipa.certs",
+            "check": "IPADogtagCertsMatchCheck",
+            "result": "SUCCESS",
+            "uuid": "abc",
+            "kw": {},
+        },
+        {
+            "source": "ipahealthcheck.ipa.certs",
+            "check": "IPACertExpiration",
+            "result": "ERROR",
+            "uuid": "def",
+            "kw": {"key": "caSigningCert", "days": 30},
+        },
+    ]
+)
 
 
 def test_get_kerberos_principal_parses_klist():
     from freeipa_mcp.tools.healthcheck import _get_kerberos_principal
+
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = (
@@ -28,6 +40,7 @@ def test_get_kerberos_principal_parses_klist():
 
 def test_get_kerberos_principal_no_ticket_raises():
     from freeipa_mcp.tools.healthcheck import _get_kerberos_principal
+
     mock_result = MagicMock()
     mock_result.returncode = 1
     with patch("subprocess.run", return_value=mock_result):
@@ -37,6 +50,7 @@ def test_get_kerberos_principal_no_ticket_raises():
 
 def test_format_as_markdown_sections_and_counts():
     from freeipa_mcp.tools.healthcheck import _format_as_markdown
+
     md = _format_as_markdown(SAMPLE_HEALTHCHECK_JSON)
     assert "# IPA Healthcheck Results" in md
     assert "## Summary" in md
@@ -51,10 +65,17 @@ def test_format_as_markdown_sections_and_counts():
 
 def test_format_as_markdown_kw_snake_to_title():
     from freeipa_mcp.tools.healthcheck import _format_as_markdown
-    data = json.dumps([{
-        "source": "src", "check": "chk", "result": "ERROR",
-        "kw": {"msg": "bad cert", "expiration_date": "2025-01-01", "ca": "ipa"},
-    }])
+
+    data = json.dumps(
+        [
+            {
+                "source": "src",
+                "check": "chk",
+                "result": "ERROR",
+                "kw": {"msg": "bad cert", "expiration_date": "2025-01-01", "ca": "ipa"},
+            }
+        ]
+    )
     md = _format_as_markdown(data)
     assert "**Message:**" in md
     assert "**Expiration Date:**" in md
@@ -63,15 +84,19 @@ def test_format_as_markdown_kw_snake_to_title():
 
 def test_format_as_markdown_empty_returns_no_results():
     from freeipa_mcp.tools.healthcheck import _format_as_markdown
+
     md = _format_as_markdown("[]")
     assert "No healthcheck results found" in md
 
 
 def test_format_as_markdown_all_success_no_recommendations():
     from freeipa_mcp.tools.healthcheck import _format_as_markdown
-    data = json.dumps([
-        {"source": "s", "check": "c", "result": "SUCCESS", "kw": {}},
-    ])
+
+    data = json.dumps(
+        [
+            {"source": "s", "check": "c", "result": "SUCCESS", "kw": {}},
+        ]
+    )
     md = _format_as_markdown(data)
     assert "All checks passed" in md
     assert "Recommendations" not in md
@@ -79,11 +104,13 @@ def test_format_as_markdown_all_success_no_recommendations():
 
 def test_format_as_markdown_invalid_json_returns_raw():
     from freeipa_mcp.tools.healthcheck import _format_as_markdown
+
     assert _format_as_markdown("not json") == "not json"
 
 
 def test_snake_to_title():
     from freeipa_mcp.tools.healthcheck import _snake_to_title
+
     assert _snake_to_title("config_file") == "Config File"
     assert _snake_to_title("expiration_date") == "Expiration Date"
     assert _snake_to_title("msg") == "Message"
@@ -101,6 +128,7 @@ async def test_execute_passwordless_skips_gui():
         patch(gui_path) as mock_gui,
     ):
         from freeipa_mcp.tools.healthcheck import execute
+
         result = await execute(
             server_hostname="ipa.example.com", mode="live", passwordless=True
         )
@@ -118,6 +146,7 @@ async def test_execute_non_passwordless_shows_gui():
         patch(gui_path, return_value="s3cr3t") as mock_gui,
     ):
         from freeipa_mcp.tools.healthcheck import execute
+
         result = await execute(
             server_hostname="ipa.example.com", mode="live", passwordless=False
         )
@@ -133,12 +162,14 @@ async def test_execute_gui_cancel_raises():
         patch(gui_path, side_effect=RuntimeError("Sudo authentication cancelled")),
     ):
         from freeipa_mcp.tools.healthcheck import execute
+
         with pytest.raises(RuntimeError, match="cancelled"):
             await execute(server_hostname="ipa.example.com", passwordless=False)
 
 
 async def test_exec_ssh_uses_sudo_with_password():
     from freeipa_mcp.tools.healthcheck import _exec_ssh
+
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "output line\n0\n"
@@ -153,6 +184,7 @@ async def test_exec_ssh_uses_sudo_with_password():
 
 async def test_exec_ssh_uses_sudo_without_password():
     from freeipa_mcp.tools.healthcheck import _exec_ssh
+
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "output line\n0\n"
