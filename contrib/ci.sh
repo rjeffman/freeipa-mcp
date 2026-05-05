@@ -13,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 usage() {
-    echo "Usage: $0 {format|linter|type|shellcheck|test|all}"
+    echo "Usage: $0 {format|linter|type|shellcheck|test|security|all}"
     echo ""
     echo "Commands:"
     echo "  format     - Check Python code formatting with ruff"
@@ -21,6 +21,7 @@ usage() {
     echo "  type       - Check type annotations with ty"
     echo "  shellcheck - Check shell scripts with shellcheck"
     echo "  test       - Run tests with coverage report"
+    echo "  security   - Run security checks with ruff (exclude tests)"
     echo "  all        - Run all checks (format, linter, type, shellcheck, test)"
     exit 1
 }
@@ -56,6 +57,12 @@ check_test() {
     echo -e "${GREEN}✓ Tests complete (coverage report: htmlcov/index.html)${NC}"
 }
 
+check_security() {
+    echo -e "${GREEN}Running security checks...${NC}"
+    ruff check --select S --exclude tests .
+    echo -e "${GREEN}✓ Security checks complete${NC}"
+}
+
 # Check argument
 if [ $# -ne 1 ]; then
     usage
@@ -76,6 +83,9 @@ case "$1" in
         ;;
     test)
         check_test
+        ;;
+    security)
+        check_security
         ;;
     all)
         echo -e "${YELLOW}Running all checks...${NC}"
