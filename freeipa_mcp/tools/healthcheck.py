@@ -1,17 +1,277 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import asyncio
 import json
+import os
+import re
 import subprocess
+import time
+from pathlib import Path
+
+# Security: Allowed severity values for healthcheck
+_ALLOWED_SEVERITIES = frozenset(["SUCCESS", "WARNING", "ERROR", "CRITICAL"])
+
+# Security: Pattern for valid source/check names
+# (alphanumeric, dots, hyphens, underscores)
+_SAFE_IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
+
+# Cache TTL in seconds (24 hours)
+_CACHE_TTL_SECONDS = 24 * 60 * 60
 
 
 def _get_kerberos_principal() -> str:
-    result = subprocess.run(["klist"], capture_output=True, text=True, timeout=10)
+    result = subprocess.run(
+        ["klist"],  # noqa: S607 - standard Kerberos utility
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
     if result.returncode != 0:
         raise RuntimeError("No Kerberos ticket found. Run the login tool first.")
     for line in result.stdout.splitlines():
         if line.startswith("Default principal:"):
             return line.split(":", 1)[1].strip().split("@")[0]
     raise RuntimeError("Could not parse Kerberos principal from klist output")
+
+
+def _is_safe_identifier(name: str) -> bool:
+    """Check if name contains only safe characters.
+
+    Allowed: alphanumeric, dots, hyphens, underscores.
+
+    Args:
+        name: String to validate
+
+    Returns:
+        True if name matches safe pattern, False otherwise
+    """
+    return _SAFE_IDENTIFIER_PATTERN.match(name) is not None
+
+
+def _get_cache_dir(server_hostname: str) -> Path:
+    """Get cache directory for healthcheck sources.
+
+    Args:
+        server_hostname: Server hostname (must be validated FQDN)
+
+    Returns:
+        Path to cache directory with 0700 permissions
+    """
+    # SECURITY: Set restrictive umask before creating directory
+    old_umask = os.umask(0o077)
+    try:
+        cache_dir = Path.home() / ".cache" / "freeipa-mcp-py" / server_hostname
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure directory has correct permissions even if it already existed
+        cache_dir.chmod(0o700)
+        return cache_dir
+    finally:
+        os.umask(old_umask)
+
+
+def _parse_list_sources(output: str) -> dict[str, list[str]]:
+    """Parse ipa-healthcheck --list-sources output into dict of sources and checks.
+
+    Expected format:
+        source.name.here
+          CheckName1
+          CheckName2
+        another.source
+          Check3
+
+    Args:
+        output: Raw output from ipa-healthcheck --list-sources
+
+    Returns:
+        Dictionary mapping source names to lists of check names
+
+    Raises:
+        ValueError: If source or check name contains shell metacharacters
+    """
+    if not output or not output.strip():
+        return {}
+
+    sources: dict[str, list[str]] = {}
+    current_source: str | None = None
+
+    for line in output.splitlines():
+        if not line:
+            continue
+        if line.startswith((" ", "\t")):
+            # This is a check under current source
+            if current_source is not None:
+                check = line.strip()
+                if check:
+                    # SECURITY: Validate check name format
+                    if not _is_safe_identifier(check):
+                        raise ValueError(
+                            f"Invalid check name format: '{check}'. "
+                            f"Check names must contain only alphanumeric characters, "
+                            f"dots, hyphens, and underscores."
+                        )
+                    sources[current_source].append(check)
+        else:
+            # This is a source name
+            source = line.strip()
+            if source:
+                # SECURITY: Validate source name format
+                if not _is_safe_identifier(source):
+                    raise ValueError(
+                        f"Invalid source name format: '{source}'. "
+                        f"Source names must contain only alphanumeric characters, "
+                        f"dots, hyphens, and underscores."
+                    )
+                current_source = source
+                sources[current_source] = []
+
+    return sources
+
+
+def _validate_cached_sources(cached_sources: dict[str, list[str]]) -> None:
+    """Validate cached source data for safe identifiers.
+
+    Args:
+        cached_sources: Dictionary of source names to check lists
+
+    Raises:
+        ValueError: If any source or check name contains shell metacharacters
+    """
+    for source, checks in cached_sources.items():
+        # SECURITY: Validate source name
+        if not _is_safe_identifier(source):
+            raise ValueError(
+                f"Invalid source name in cache: '{source}'. "
+                f"Cache may be corrupted or poisoned."
+            )
+        # SECURITY: Validate all check names
+        for check in checks:
+            if not _is_safe_identifier(check):
+                raise ValueError(
+                    f"Invalid check name in cache: '{check}' for source '{source}'. "
+                    f"Cache may be corrupted or poisoned."
+                )
+
+
+def _get_cached_sources(
+    server_hostname: str, username: str, password: str | None
+) -> dict[str, list[str]]:
+    """Get cached healthcheck sources, fetching if necessary.
+
+    Implements cache TTL - refreshes after 24 hours.
+
+    Args:
+        server_hostname: Server hostname (must be validated FQDN)
+        username: SSH username
+        password: Optional sudo password
+
+    Returns:
+        Dictionary mapping source names to lists of check names
+
+    Raises:
+        ValueError: If cached data contains invalid identifiers
+    """
+    cache_dir = _get_cache_dir(server_hostname)
+    cache_file = cache_dir / "healthcheck-sources.json"
+
+    # Try to load from cache if it exists and is fresh
+    if cache_file.exists():
+        try:
+            # Check cache age (TTL: 24 hours)
+            cache_age = time.time() - cache_file.stat().st_mtime
+            if cache_age < _CACHE_TTL_SECONDS:
+                data = json.loads(cache_file.read_text())
+                if isinstance(data, dict):
+                    # SECURITY: Validate loaded cache data
+                    _validate_cached_sources(data)
+                    return data
+        except (json.JSONDecodeError, OSError, ValueError):
+            # Cache corrupted, stale, or poisoned - will refetch
+            pass
+
+    # Fetch sources from server
+    output = _exec_ssh(
+        server_hostname, username, "ipa-healthcheck --list-sources", password
+    )
+    sources = _parse_list_sources(output)
+
+    # Save to cache with secure permissions
+    # SECURITY: Set restrictive umask before creating file
+    old_umask = os.umask(0o077)
+    try:
+        cache_file.write_text(json.dumps(sources, indent=2))
+        # Ensure file has correct permissions
+        cache_file.chmod(0o600)
+    finally:
+        os.umask(old_umask)
+
+    return sources
+
+
+def _validate_source(source: str | None, cached_sources: dict[str, list[str]]) -> None:
+    """Validate source parameter against allowlist of cached sources.
+
+    Args:
+        source: Source name to validate (or None)
+        cached_sources: Dictionary of known-good sources from server
+
+    Raises:
+        ValueError: If source is not in the allowlist
+    """
+    if source is None:
+        return
+
+    # Check if source exists in cache (allowlist validation)
+    if source not in cached_sources:
+        raise ValueError(
+            f"Invalid source: '{source}'. "
+            f"Available sources: {', '.join(sorted(cached_sources.keys()))}"
+        )
+
+
+def _validate_check(
+    source: str | None, check: str | None, cached_sources: dict[str, list[str]]
+) -> None:
+    """Validate check parameter against cached checks for the given source.
+
+    Raises:
+        ValueError: If check is invalid or source is missing.
+    """
+    if check is None:
+        return
+
+    if source is None:
+        raise ValueError("Check parameter requires a source parameter to be specified")
+
+    # Validate source first
+    if source not in cached_sources:
+        raise ValueError(f"Invalid source: '{source}'")
+
+    # Check if check exists for this source
+    available_checks = cached_sources[source]
+    if check not in available_checks:
+        raise ValueError(
+            f"Invalid check: '{check}' for source '{source}'. "
+            f"Available checks: {', '.join(sorted(available_checks))}"
+        )
+
+
+def _validate_severity(severity: list[str] | None) -> None:
+    """Validate severity parameter values.
+
+    Args:
+        severity: List of severity values to validate (or None)
+
+    Raises:
+        ValueError: If any severity value is not in allowed list
+    """
+    if severity is None:
+        return
+
+    for sev in severity:
+        if sev not in _ALLOWED_SEVERITIES:
+            raise ValueError(
+                f"Invalid severity: '{sev}'. "
+                f"Allowed values: {', '.join(sorted(_ALLOWED_SEVERITIES))}"
+            )
 
 
 def _exec_ssh(
@@ -27,8 +287,11 @@ def _exec_ssh(
     else:
         remote = f'bash -c "cd / && sudo {escaped_cmd}; echo $?"'
 
-    result = subprocess.run(
-        [
+    # SECURITY: All callers of _exec_ssh MUST validate inputs before calling.
+    # Current callers: _get_cached_sources (validated hostname),
+    # _healthcheck_blocking (validated source/check/severity against allowlist)
+    result = subprocess.run(  # noqa: S603 - inputs validated by all callers
+        [  # noqa: S607 - standard ssh command
             "ssh",
             "-T",
             "-o",
@@ -204,6 +467,13 @@ def _healthcheck_blocking(
         cmd = "cat /var/log/ipa/healthcheck/healthcheck.log"
         output = _exec_ssh(server_hostname, username, cmd, password)
     else:
+        # SECURITY: Fetch and validate parameters against cached sources
+        cached_sources = _get_cached_sources(server_hostname, username, password)
+        _validate_source(source, cached_sources)
+        _validate_check(source, check, cached_sources)
+        _validate_severity(severity)
+
+        # Build command with validated parameters
         parts = ["ipa-healthcheck", "--output-type", "json"]
         if source:
             parts += ["--source", source]
@@ -226,11 +496,35 @@ async def execute(
     mode: str = "live",
     source: str | None = None,
     check: str | None = None,
-    failures_only: bool = False,
+    failures_only: bool = True,
     severity: list[str] | None = None,
     passwordless: bool = False,
     output_format: str = "markdown",
 ) -> str:
+    """Execute FreeIPA healthcheck on remote server.
+
+    Args:
+        server_hostname: FQDN of FreeIPA server
+        mode: "live" or "log" mode
+        source: Optional source filter
+        check: Optional check filter (requires source)
+        failures_only: Only show failures (default: True)
+        severity: Optional severity filter
+        passwordless: Skip sudo password prompt
+        output_format: "markdown" or "json"
+
+    Returns:
+        Healthcheck results in requested format
+
+    Raises:
+        ValueError: If server_hostname is invalid FQDN or parameters fail validation
+        RuntimeError: If Kerberos authentication fails or SSH command fails
+    """
+    # SECURITY: Validate server hostname to prevent path traversal and SSH redirection
+    from .create_ipaconf import validate_fqdn
+
+    validate_fqdn(server_hostname)
+
     username = await asyncio.to_thread(_get_kerberos_principal)
 
     password: str | None = None
