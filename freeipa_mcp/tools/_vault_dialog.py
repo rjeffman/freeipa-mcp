@@ -170,13 +170,15 @@ def save_or_display_vault_data(arguments: dict, vault_name: str, data: bytes) ->
     if "out" in arguments:
         out_file = Path(arguments["out"])
         out_file.write_bytes(data)
-        return f"Vault data saved to {out_file} ({len(data)} bytes)"
+        # SECURITY: Don't leak metadata (like data size) to AI agent
+        return f"Vault data saved to {out_file}"
 
     # Try GTK dialog if display available
     if has_display():
         try:
             display_vault_data(vault_name, data)
-            return f"Vault data displayed in dialog ({len(data)} bytes)"
+            # SECURITY: Don't leak metadata (like data size) to AI agent
+            return "Vault data displayed in dialog"
         except (ImportError, RuntimeError) as e:
             # GTK not available or dialog failed - fall through to error
             # Include original error in final message for debugging

@@ -3,7 +3,10 @@
 
 from unittest.mock import MagicMock, patch
 
-from freeipa_mcp.tools._vault_dialog import display_vault_data
+from freeipa_mcp.tools._vault_dialog import (
+    display_vault_data,
+    save_or_display_vault_data,
+)
 
 
 def test_display_vault_data_passes_data_via_stdin_not_argv():
@@ -47,3 +50,66 @@ def test_display_vault_data_passes_data_via_stdin_not_argv():
         assert kwargs["input"] == sensitive_data, (
             "stdin should contain the sensitive data"
         )
+
+
+def test_save_or_display_vault_data_does_not_leak_metadata(tmp_path):
+    """
+    Security test: verify return message doesn't leak vault metadata to AI agent.
+
+    CRITICAL: AI agent should not receive any metadata about vault contents,
+    including data size, which could be used for inference attacks.
+    """
+    vault_name = "test-vault"
+    sensitive_data = b"secret password 123"
+    output_file = tmp_path / "output.txt"
+
+    # Test file output path
+    arguments = {"out": str(output_file)}
+    result = save_or_display_vault_data(arguments, vault_name, sensitive_data)
+
+    # Verify file was written correctly
+    assert output_file.read_bytes() == sensitive_data
+
+    # Verify result message does NOT contain data size
+    assert str(len(sensitive_data)) not in result, (
+        f"Data size leaked in result message: {result}"
+    )
+    assert "bytes" not in result.lower(), (
+        f"Byte count leaked in result message: {result}"
+    )
+    assert "19" not in result, "Specific data size leaked"
+
+    # Verify result is a success message without metadata
+    assert "saved" in result.lower() or "success" in result.lower()
+
+
+def test_display_vault_data_does_not_leak_metadata():
+    """
+    Security test: verify display function doesn't leak metadata to AI agent.
+
+    CRITICAL: When displaying vault data in dialog, the AI agent should not
+    receive any metadata about the vault contents.
+    """
+    vault_name = "test-vault"
+    sensitive_data = b"secret password 123"
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0, stderr=b"", stdout=b"")
+
+        # Mock has_display to return True
+        with patch("freeipa_mcp.tools._vault_dialog.has_display", return_value=True):
+            from freeipa_mcp.tools._vault_dialog import save_or_display_vault_data
+
+            result = save_or_display_vault_data({}, vault_name, sensitive_data)
+
+            # Verify result message does NOT contain data size
+            assert str(len(sensitive_data)) not in result, (
+                f"Data size leaked in result message: {result}"
+            )
+            assert "bytes" not in result.lower(), (
+                f"Byte count leaked in result message: {result}"
+            )
+            assert "19" not in result, "Specific data size leaked"
+
+            # Verify result is a success message without metadata
+            assert "displayed" in result.lower() or "success" in result.lower()
