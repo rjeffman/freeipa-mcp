@@ -4,36 +4,39 @@
 Standalone GTK4 dialog for displaying vault data.
 
 This script runs as a subprocess to avoid GTK/asyncio conflicts.
-Called by _vault_dialog.py with vault name and base64-encoded data.
+Called by _vault_dialog.py with vault name as argument and data via stdin.
+
+SECURITY: Sensitive vault data is passed via stdin to prevent exposure
+in the process table (ps/proc shows command-line arguments but not stdin).
 
 Exit codes:
   0  — success
   1  — usage error
-  2  — decode error
+  2  — read error
   3  — GTK4 unavailable or display cannot be opened
 """
 
-import base64
 import sys
 from pathlib import Path
 
 
 def main():
     """Display vault data in GTK dialog."""
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print(
-            "Usage: _vault_display_dialog.py <vault_name> <base64_data>",
+            "Usage: _vault_display_dialog.py <vault_name> < data_file",
             file=sys.stderr,
         )
         sys.exit(1)
 
     vault_name = sys.argv[1]
-    data_b64 = sys.argv[2]
 
+    # SECURITY: Read sensitive data from stdin, NOT command-line arguments
+    # (command-line args are visible in process table via ps/proc)
     try:
-        data = base64.b64decode(data_b64)
+        data = sys.stdin.buffer.read()
     except Exception as e:
-        print(f"Failed to decode data: {e}", file=sys.stderr)
+        print(f"Failed to read data from stdin: {e}", file=sys.stderr)
         sys.exit(2)
 
     # Import GTK

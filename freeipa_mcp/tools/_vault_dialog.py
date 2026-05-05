@@ -5,7 +5,6 @@ GTK4 dialogs for secure vault password input and data display.
 Ensures vault passwords and sensitive data are never exposed to AI agents.
 """
 
-import base64
 import subprocess
 import sys
 from pathlib import Path
@@ -86,14 +85,13 @@ def display_vault_data(vault_name: str, data: bytes) -> None:
     if not has_display():
         raise RuntimeError("No display available for data dialog")
 
-    # Encode data as base64 for safe subprocess transmission
-    data_b64 = base64.b64encode(data).decode("ascii")
-
     # Run GTK dialog in subprocess
+    # SECURITY: Pass sensitive data via stdin, NOT command-line arguments
+    # (command-line args are visible in process table via ps/proc)
     result = subprocess.run(
-        [sys.executable, str(_DISPLAY_DIALOG_SCRIPT), vault_name, data_b64],
+        [sys.executable, str(_DISPLAY_DIALOG_SCRIPT), vault_name],
+        input=data,
         capture_output=True,
-        text=True,
     )
 
     if result.returncode == 3:
