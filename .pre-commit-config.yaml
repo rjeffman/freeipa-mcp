@@ -26,3 +26,28 @@ repos:
             "SC2311",
           ]
         files: \.sh$
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff-format
+        name: ruff format
+      - id: ruff
+        name: ruff linter
+      - id: ruff
+        name: ruff security
+        args: [--select, S, --ignore, S101, --exclude, tests]
+  - repo: local
+    hooks:
+      - id: ty-check
+        name: ty type checker
+        entry: ty check .
+        language: system
+        pass_filenames: false
+        files: \.py$
+      - id: pytest
+        name: pytest with coverage
+        entry: bash -c 'PYTHONPATH=. pytest --cov=ipaclient --cov-report=term-missing --cov-report=html'
+        language: system
+        pass_filenames: false
+        files: \.py$
+        stages: [pre-push]

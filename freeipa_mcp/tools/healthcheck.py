@@ -19,7 +19,7 @@ _CACHE_TTL_SECONDS = 24 * 60 * 60
 
 
 def _get_kerberos_principal() -> str:
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - klist is a trusted Kerberos tool
         ["klist"],  # noqa: S607 - standard Kerberos utility
         capture_output=True,
         text=True,
