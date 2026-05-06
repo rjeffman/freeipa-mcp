@@ -278,14 +278,15 @@ def _exec_ssh(
     hostname: str, username: str, command: str, password: str | None = None
 ) -> str:
     escaped_cmd = command.replace("\\", "\\\\").replace('"', '\\"')
+
     if password is not None:
-        escaped_pwd = password.replace("\\", "\\\\").replace("'", "'\\''")
-        remote = (
-            f"bash -c \"cd / && sudo --stdin {escaped_cmd} <<< '{escaped_pwd}'"
-            f'; echo $?"'
-        )
+        # SECURITY: Pass password via stdin instead of embedding in shell command
+        # to prevent command injection through special characters in password
+        remote = f'bash -c "cd / && sudo --stdin {escaped_cmd}; echo $?"'
+        ssh_input = f"{password}\n"
     else:
         remote = f'bash -c "cd / && sudo {escaped_cmd}; echo $?"'
+        ssh_input = None
 
     # SECURITY: All callers of _exec_ssh MUST validate inputs before calling.
     # Current callers: _get_cached_sources (validated hostname),
@@ -307,6 +308,7 @@ def _exec_ssh(
             f"{username}@{hostname}",
             remote,
         ],
+        input=ssh_input,
         capture_output=True,
         text=True,
         timeout=120,

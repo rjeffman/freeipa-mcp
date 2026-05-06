@@ -181,9 +181,47 @@ async def test_exec_ssh_uses_sudo_with_password():
     with patch("subprocess.run", return_value=mock_result) as mock_run:
         _exec_ssh("host", "user", "ipa-healthcheck", password="secret")  # noqa: S106 - test data
     call_args = mock_run.call_args[0][0]
+    call_kwargs = mock_run.call_args[1]
     remote_cmd = call_args[-1]
     assert "sudo --stdin" in remote_cmd
-    assert "secret" in remote_cmd
+    # SECURITY: Password should be passed via input parameter, not embedded in command
+    assert "secret" not in remote_cmd
+    assert call_kwargs["input"] == "secret\n"
+
+
+async def test_exec_ssh_prevents_command_injection_via_password():
+    """Test that special characters in password don't cause command injection."""
+    from freeipa_mcp.tools.healthcheck import _exec_ssh
+
+    # Test passwords with various injection attempts
+    dangerous_passwords = [
+        'hello"; rm -rf / #',  # Double quote injection
+        "test$(whoami)test",  # Command substitution
+        "test`id`test",  # Backtick command substitution
+        "test\nrm -rf /\n",  # Newline injection
+        "test;echo hacked;",  # Semicolon command separator
+    ]
+
+    for password in dangerous_passwords:
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "output line\n0\n"
+        mock_result.stderr = ""
+
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            _exec_ssh("host", "user", "ipa-healthcheck", password=password)
+
+        call_kwargs = mock_run.call_args[1]
+        remote_cmd = mock_run.call_args[0][0][-1]
+
+        # Password should NOT be in the remote command
+        assert password not in remote_cmd, f"Password leaked into command: {password}"
+        # Password SHOULD be in the input parameter
+        assert call_kwargs["input"] == f"{password}\n"
+        # Remote command should not contain injection attempts
+        assert "rm" not in remote_cmd
+        assert "whoami" not in remote_cmd
+        assert "echo hacked" not in remote_cmd
 
 
 async def test_exec_ssh_uses_sudo_without_password():
