@@ -17,8 +17,13 @@ def get_server_config_path() -> Path:
 
 def save_server_config(hostname: str) -> None:
     path = get_server_config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(hostname)
+    # Create config directory and file with secure permissions (mode 0700/0600)
+    old_umask = os.umask(0o077)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(hostname)
+    finally:
+        os.umask(old_umask)
 
 
 def load_server_config() -> str | None:

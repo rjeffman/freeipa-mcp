@@ -85,6 +85,7 @@ Dependencies:
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -289,7 +290,13 @@ class IPAThinClient:
 
         # Get server-specific cache directory
         cache_dir = self.get_cache_dir()
-        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create cache directory with secure permissions (mode 0700)
+        old_umask = os.umask(0o077)
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+        finally:
+            os.umask(old_umask)
 
         # Certificate cache path
         cert_path = cache_dir / "ca.crt"
@@ -323,8 +330,12 @@ class IPAThinClient:
                         f"man-in-the-middle attack."
                     )
 
-            # Save certificate to cache
-            cert_path.write_text(response.text)
+            # Save certificate to cache with secure permissions (mode 0600)
+            old_umask = os.umask(0o077)
+            try:
+                cert_path.write_text(response.text)
+            finally:
+                os.umask(old_umask)
             return str(cert_path)
 
         except requests.exceptions.RequestException as e:

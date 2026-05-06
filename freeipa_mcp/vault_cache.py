@@ -8,6 +8,7 @@ vaultconfig_show calls. Cache is stored per-server in the user's cache directory
 
 import base64
 import json
+import os
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -65,12 +66,17 @@ class KRAConfigCache:
             algo: Wrapping algorithm name
         """
         try:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-            cache_data = {
-                "transport_cert": base64.b64encode(cert_der).decode("ascii"),
-                "wrapping_algo": algo,
-            }
-            self.cache_file.write_text(json.dumps(cache_data, indent=2))
+            # Create cache directory and file with secure permissions (mode 0700/0600)
+            old_umask = os.umask(0o077)
+            try:
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_data = {
+                    "transport_cert": base64.b64encode(cert_der).decode("ascii"),
+                    "wrapping_algo": algo,
+                }
+                self.cache_file.write_text(json.dumps(cache_data, indent=2))
+            finally:
+                os.umask(old_umask)
         except Exception:
             # Cache write failure is non-fatal - just log and continue
             pass
