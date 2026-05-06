@@ -913,3 +913,183 @@ def test_ssl_verification_with_ca_cert(mock_auth, mock_server, tmp_path, monkeyp
     assert result == {"summary": "OK"}
     # The request should have been made with verify=cert_path
     # (We can't easily verify this with responses, but the test ensures no errors)
+
+
+@responses.activate
+def test_ca_fingerprint_verification_success(mock_server, tmp_path, monkeypatch):
+    """Test successful CA fingerprint verification."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    cache_dir = tmp_path / ".cache" / "freeipa-mcp-py" / mock_server
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Mock CA certificate content (same as used in other tests)
+    ca_cert_content = """-----BEGIN CERTIFICATE-----
+MIIDNTCCAh2gAwIBAgIBATANBgkqhkiG9w0BAQsFADA3MRUwEwYDVQQKDAxJUEEu
+RVBBU0VMSU5FMR4wHAYDVQQDDBVDZXJ0aWZpY2F0ZSBBdXRob3JpdHkwHhcNMjQw
+-----END CERTIFICATE-----"""
+
+    # Mock HTTP GET for CA cert download
+    responses.add(
+        responses.GET,
+        f"http://{mock_server}/ipa/config/ca.crt",
+        body=ca_cert_content,
+        status=200,
+    )
+
+    # Calculate the correct SHA256 fingerprint for this certificate
+    import hashlib
+
+    expected_fingerprint = hashlib.sha256(ca_cert_content.encode()).hexdigest()
+
+    # Create client with correct fingerprint (should succeed)
+    client = IPAThinClient(
+        mock_server, verify_ssl=True, ca_fingerprint=expected_fingerprint
+    )
+
+    # Verify cert was downloaded
+    assert len(responses.calls) == 1
+
+    # Verify cert was cached
+    cert_path = cache_dir / "ca.crt"
+    assert cert_path.exists()
+
+    # Verify client uses the cert path
+    assert client._verify_ssl == str(cert_path)
+
+
+@responses.activate
+def test_ca_fingerprint_verification_mismatch(mock_server, tmp_path, monkeypatch):
+    """Test CA fingerprint mismatch raises error."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Mock CA certificate content
+    ca_cert_content = """-----BEGIN CERTIFICATE-----
+MIIDNTCCAh2gAwIBAgIBATANBgkqhkiG9w0BAQsFADA3MRUwEwYDVQQKDAxJUEEu
+RVBBU0VMSU5FMR4wHAYDVQQDDBVDZXJ0aWZpY2F0ZSBBdXRob3JpdHkwHhcNMjQw
+-----END CERTIFICATE-----"""
+
+    # Mock HTTP GET for CA cert download
+    responses.add(
+        responses.GET,
+        f"http://{mock_server}/ipa/config/ca.crt",
+        body=ca_cert_content,
+        status=200,
+    )
+
+    # Use an incorrect fingerprint (all zeros)
+    wrong_fingerprint = "0" * 64
+
+    # Should raise ValueError with fingerprint mismatch
+    with pytest.raises(ValueError) as exc_info:
+        IPAThinClient(mock_server, verify_ssl=True, ca_fingerprint=wrong_fingerprint)
+
+    assert "CA fingerprint mismatch" in str(exc_info.value)
+    assert wrong_fingerprint in str(exc_info.value)
+
+
+@responses.activate
+def test_ca_fingerprint_optional(mock_server, tmp_path, monkeypatch):
+    """Test that CA fingerprint verification is optional (backward compatible)."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    cache_dir = tmp_path / ".cache" / "freeipa-mcp-py" / mock_server
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Mock CA certificate content
+    ca_cert_content = """-----BEGIN CERTIFICATE-----
+MIIDNTCCAh2gAwIBAgIBATANBgkqhkiG9w0BAQsFADA3MRUwEwYDVQQKDAxJUEEu
+RVBBU0VMSU5FMR4wHAYDVQQDDBVDZXJ0aWZpY2F0ZSBBdXRob3JpdHkwHhcNMjQw
+-----END CERTIFICATE-----"""
+
+    # Mock HTTP GET for CA cert download
+    responses.add(
+        responses.GET,
+        f"http://{mock_server}/ipa/config/ca.crt",
+        body=ca_cert_content,
+        status=200,
+    )
+
+    # Create client without fingerprint (backward compatible behavior)
+    client = IPAThinClient(mock_server, verify_ssl=True)
+
+    # Verify cert was downloaded and cached
+    cert_path = cache_dir / "ca.crt"
+    assert cert_path.exists()
+    assert client._verify_ssl == str(cert_path)
+
+
+@responses.activate
+def test_ca_fingerprint_with_cached_cert(mock_server, tmp_path, monkeypatch):
+    """Test that fingerprint is verified against cached certificate."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    cache_dir = tmp_path / ".cache" / "freeipa-mcp-py" / mock_server
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Pre-populate cache with a certificate
+    ca_cert_content = """-----BEGIN CERTIFICATE-----
+MIIDNTCCAh2gAwIBAgIBATANBgkqhkiG9w0BAQsFADA3MRUwEwYDVQQKDAxJUEEu
+RVBBU0VMSU5FMR4wHAYDVQQDDBVDZXJ0aWZpY2F0ZSBBdXRob3JpdHkwHhcNMjQw
+-----END CERTIFICATE-----"""
+    cert_path = cache_dir / "ca.crt"
+    cert_path.write_text(ca_cert_content)
+
+    # Calculate the correct SHA256 fingerprint
+    import hashlib
+
+    expected_fingerprint = hashlib.sha256(ca_cert_content.encode()).hexdigest()
+
+    # Create client with correct fingerprint (should succeed, using cached cert)
+    client = IPAThinClient(
+        mock_server, verify_ssl=True, ca_fingerprint=expected_fingerprint
+    )
+
+    # Verify no HTTP requests were made (used cache)
+    assert len(responses.calls) == 0
+
+    # Verify client uses the cached cert
+    assert client._verify_ssl == str(cert_path)
+
+
+@responses.activate
+def test_ca_fingerprint_mismatch_with_cached_cert(mock_server, tmp_path, monkeypatch):
+    """Test that fingerprint mismatch is detected with cached certificate."""
+    # Override the autouse fixture for this test
+    monkeypatch.undo()
+
+    # Mock home directory to use tmp_path
+    cache_dir = tmp_path / ".cache" / "freeipa-mcp-py" / mock_server
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+    # Pre-populate cache with a certificate
+    ca_cert_content = """-----BEGIN CERTIFICATE-----
+MIIDNTCCAh2gAwIBAgIBATANBgkqhkiG9w0BAQsFADA3MRUwEwYDVQQKDAxJUEEu
+RVBBU0VMSU5FMR4wHAYDVQQDDBVDZXJ0aWZpY2F0ZSBBdXRob3JpdHkwHhcNMjQw
+-----END CERTIFICATE-----"""
+    cert_path = cache_dir / "ca.crt"
+    cert_path.write_text(ca_cert_content)
+
+    # Use an incorrect fingerprint
+    wrong_fingerprint = "0" * 64
+
+    # Should raise ValueError even with cached cert
+    with pytest.raises(ValueError) as exc_info:
+        IPAThinClient(mock_server, verify_ssl=True, ca_fingerprint=wrong_fingerprint)
+
+    assert "CA fingerprint mismatch" in str(exc_info.value)
+    assert wrong_fingerprint in str(exc_info.value)
+    # Should not have downloaded (used cache)
+    assert len(responses.calls) == 0

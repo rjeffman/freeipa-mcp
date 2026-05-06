@@ -204,7 +204,12 @@ class IPAThinClient:
         IPA server version 4.9.8. API version 2.251
     """
 
-    def __init__(self, server: str, verify_ssl: bool = True):
+    def __init__(
+        self,
+        server: str,
+        verify_ssl: bool = True,
+        ca_fingerprint: Optional[str] = None,
+    ):
         """Initialize IPA client.
 
         Args:
@@ -212,11 +217,17 @@ class IPAThinClient:
             verify_ssl: Whether to verify SSL certificates (default: True)
                        If True, the CA certificate will be automatically downloaded
                        and cached from the server.
+            ca_fingerprint: Optional SHA256 fingerprint (hex string) of the expected
+                          CA certificate. If provided, the downloaded CA certificate
+                          will be verified against this fingerprint to prevent
+                          Trust-On-First-Use (TOFU) attacks. Recommended for
+                          production deployments.
         """
         self._server = server
         self._base_url = f"https://{server}"
         self._json_url = f"{self._base_url}/ipa/json"
         self._verify_ssl: Union[bool, str] = verify_ssl
+        self._ca_fingerprint = ca_fingerprint
         self._schema: Optional[Dict[str, Any]] = None
 
         # If SSL verification is enabled, get the CA certificate
@@ -264,12 +275,18 @@ class IPAThinClient:
         already cached. The certificate is stored in
         ~/.cache/freeipa-mcp-py/{server}/ca.crt
 
+        If ca_fingerprint was provided during initialization, the certificate's
+        SHA256 fingerprint will be verified against the expected value.
+
         Returns:
             Path to the cached CA certificate file
 
         Raises:
             IPAConnectionError: Failed to download CA certificate
+            ValueError: CA certificate fingerprint mismatch
         """
+        import hashlib
+
         # Get server-specific cache directory
         cache_dir = self.get_cache_dir()
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -277,8 +294,17 @@ class IPAThinClient:
         # Certificate cache path
         cert_path = cache_dir / "ca.crt"
 
-        # Return cached certificate if it exists
+        # If certificate exists in cache, verify fingerprint if required
         if cert_path.exists():
+            if self._ca_fingerprint:
+                cert_content = cert_path.read_text()
+                actual_fingerprint = hashlib.sha256(cert_content.encode()).hexdigest()
+                if actual_fingerprint != self._ca_fingerprint:
+                    raise ValueError(
+                        f"CA fingerprint mismatch! Expected {self._ca_fingerprint}, "
+                        f"got {actual_fingerprint}. This may indicate a "
+                        f"man-in-the-middle attack or certificate change."
+                    )
             return str(cert_path)
 
         # Download CA certificate from server
@@ -286,6 +312,16 @@ class IPAThinClient:
         try:
             response = requests.get(ca_url, timeout=10)
             response.raise_for_status()
+
+            # Verify fingerprint if required
+            if self._ca_fingerprint:
+                actual_fingerprint = hashlib.sha256(response.text.encode()).hexdigest()
+                if actual_fingerprint != self._ca_fingerprint:
+                    raise ValueError(
+                        f"CA fingerprint mismatch! Expected {self._ca_fingerprint}, "
+                        f"got {actual_fingerprint}. This may indicate a "
+                        f"man-in-the-middle attack."
+                    )
 
             # Save certificate to cache
             cert_path.write_text(response.text)
