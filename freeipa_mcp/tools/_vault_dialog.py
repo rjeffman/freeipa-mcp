@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from .common import validate_file_path
+
 _DISPLAY_DIALOG_SCRIPT = Path(__file__).parent / "_vault_display_dialog.py"
 _PASSWORD_DIALOG_SCRIPT = Path(__file__).parent / "_vault_password_dialog.py"
 
@@ -121,14 +123,17 @@ def get_password_from_file_or_dialog(
         Password string
 
     Raises:
-        ValueError: If password_file not found and no display available
+        ValueError: If password_file path is unsafe or not found and
+            no display available
+        FileNotFoundError: If password_file doesn't exist
         RuntimeError: If user cancelled dialog
     """
     # First check for password file (secure method)
     if "password_file" in arguments:
-        password_file = Path(arguments["password_file"])
-        if not password_file.exists():
-            raise FileNotFoundError(f"Password file not found: {password_file}")
+        # Validate path is safe (under home directory, no dangerous symlinks)
+        password_file = validate_file_path(
+            arguments["password_file"], allow_write=False
+        )
         return password_file.read_text().rstrip("\n\r")
 
     # Try GTK dialog if display available
@@ -164,11 +169,12 @@ def save_or_display_vault_data(arguments: dict, vault_name: str, data: bytes) ->
         Success message (does NOT include actual data)
 
     Raises:
-        ValueError: If no output method available
+        ValueError: If output path is unsafe or no output method available
     """
     # First check for output file (secure method)
     if "out" in arguments:
-        out_file = Path(arguments["out"])
+        # Validate path is safe (under home directory, no dangerous symlinks)
+        out_file = validate_file_path(arguments["out"], allow_write=True)
         out_file.write_bytes(data)
         # SECURITY: Don't leak metadata (like data size) to AI agent
         return f"Vault data saved to {out_file}"

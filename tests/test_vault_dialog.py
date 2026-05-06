@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Tests for vault dialog security."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from freeipa_mcp.tools._vault_dialog import (
     display_vault_data,
@@ -52,7 +55,16 @@ def test_display_vault_data_passes_data_via_stdin_not_argv():
         )
 
 
-def test_save_or_display_vault_data_does_not_leak_metadata(tmp_path):
+@pytest.fixture
+def temp_home(monkeypatch, tmp_path):
+    """Create a temporary home directory for testing."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    return home
+
+
+def test_save_or_display_vault_data_does_not_leak_metadata(temp_home):
     """
     Security test: verify return message doesn't leak vault metadata to AI agent.
 
@@ -61,7 +73,7 @@ def test_save_or_display_vault_data_does_not_leak_metadata(tmp_path):
     """
     vault_name = "test-vault"
     sensitive_data = b"secret password 123"
-    output_file = tmp_path / "output.txt"
+    output_file = temp_home / "output.txt"
 
     # Test file output path
     arguments = {"out": str(output_file)}

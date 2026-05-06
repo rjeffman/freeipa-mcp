@@ -14,7 +14,6 @@ All commands support dynamic parameters and perform client-side cryptography.
 
 import base64
 import json
-from pathlib import Path
 from typing import Optional
 
 from ..ipaclient import IPAThinClient
@@ -38,7 +37,7 @@ from ._vault_dialog import (
     get_password_from_file_or_dialog,
     save_or_display_vault_data,
 )
-from .common import get_client
+from .common import get_client, validate_file_path
 
 MAX_VAULT_DATA_SIZE = 1 << 20  # 1 MiB
 DEFAULT_WRAPPING_ALGO = "aes-128-cbc"
@@ -84,15 +83,15 @@ def get_input_data(arguments: dict) -> bytes:
         File contents as bytes
 
     Raises:
-        ValueError: If file not specified, not found, or too large
+        ValueError: If file not specified, not found, unsafe, or too large
+        FileNotFoundError: If file doesn't exist
     """
     in_file = arguments.get("in")
     if not in_file:
         raise ValueError("Required parameter 'in' not provided")
 
-    path = Path(in_file)
-    if not path.exists():
-        raise FileNotFoundError(f"Input file not found: {in_file}")
+    # Validate path is safe (under home directory, no dangerous symlinks)
+    path = validate_file_path(in_file, allow_write=False)
 
     data = path.read_bytes()
     if len(data) > MAX_VAULT_DATA_SIZE:
@@ -114,17 +113,15 @@ def get_private_key_pem(arguments: dict) -> Optional[bytes]:
         PEM private key bytes, or None if not provided
 
     Raises:
+        ValueError: If private_key_file path is unsafe
         FileNotFoundError: If private_key_file specified but not found
     """
     if "private_key" in arguments:
         return arguments["private_key"].encode("utf-8")
 
     if "private_key_file" in arguments:
-        path = Path(arguments["private_key_file"])
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Private key file not found: {arguments['private_key_file']}"
-            )
+        # Validate path is safe (under home directory, no dangerous symlinks)
+        path = validate_file_path(arguments["private_key_file"], allow_write=False)
         return path.read_bytes()
 
     return None
