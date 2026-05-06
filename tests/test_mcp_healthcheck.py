@@ -179,7 +179,7 @@ async def test_exec_ssh_uses_sudo_with_password():
     mock_result.stdout = "output line\n0\n"
     mock_result.stderr = ""
     with patch("subprocess.run", return_value=mock_result) as mock_run:
-        _exec_ssh("host", "user", "ipa-healthcheck", password="secret")
+        _exec_ssh("host", "user", "ipa-healthcheck", password="secret")  # noqa: S106 - test data
     call_args = mock_run.call_args[0][0]
     remote_cmd = call_args[-1]
     assert "sudo --stdin" in remote_cmd

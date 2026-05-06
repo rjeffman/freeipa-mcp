@@ -30,7 +30,7 @@ def get_sudo_password(username: str, hostname: str) -> str | None:
             "Set DISPLAY or WAYLAND_DISPLAY, or configure passwordless sudo."
         )
 
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - trusted script with controlled args
         [sys.executable, str(_DIALOG_SCRIPT), username, hostname],
         capture_output=True,
         text=True,

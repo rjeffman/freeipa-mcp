@@ -51,7 +51,12 @@ def _get_available_principals() -> list[dict[str, str | bool]]:
 
     Returns list of dicts with 'principal' and 'renewable' keys.
     """
-    result = subprocess.run(["klist", "-A"], capture_output=True, text=True, timeout=10)
+    result = subprocess.run(  # noqa: S603 - klist is a trusted Kerberos tool
+        ["klist", "-A"],  # noqa: S607 - klist expected in PATH
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
     if result.returncode != 0:
         return []
 
@@ -93,8 +98,8 @@ def _try_renew_ticket(principal: str) -> bool:
 
     Returns True if renewal succeeded, False otherwise.
     """
-    result = subprocess.run(
-        ["kinit", "-R", principal],
+    result = subprocess.run(  # noqa: S603 - kinit is a trusted Kerberos tool
+        ["kinit", "-R", principal],  # noqa: S607 - kinit expected in PATH
         capture_output=True,
         text=True,
         timeout=30,
@@ -103,8 +108,8 @@ def _try_renew_ticket(principal: str) -> bool:
 
 
 def _kinit(principal: str, password: str, renewable_lifetime: str) -> None:
-    result = subprocess.run(
-        ["kinit", "-r", renewable_lifetime, principal],
+    result = subprocess.run(  # noqa: S603 - kinit is a trusted Kerberos tool
+        ["kinit", "-r", renewable_lifetime, principal],  # noqa: S607 - kinit expected in PATH
         input=password,
         capture_output=True,
         text=True,
@@ -117,7 +122,12 @@ def _kinit(principal: str, password: str, renewable_lifetime: str) -> None:
 
 
 def _validate_tgt(principal: str) -> dict[str, str]:
-    result = subprocess.run(["klist"], capture_output=True, text=True, timeout=10)
+    result = subprocess.run(  # noqa: S603 - klist is a trusted Kerberos tool
+        ["klist"],  # noqa: S607 - klist expected in PATH
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
     if result.returncode != 0:
         raise RuntimeError("No valid Kerberos ticket found after kinit")
     info: dict[str, str] = {}

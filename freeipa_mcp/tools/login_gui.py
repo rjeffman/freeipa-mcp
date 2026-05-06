@@ -47,7 +47,7 @@ def get_login_credentials(
     if available_principals:
         args.append(json.dumps(available_principals))
 
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - trusted script with controlled args
         args,
         capture_output=True,
         text=True,

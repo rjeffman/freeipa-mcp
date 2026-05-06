@@ -56,7 +56,7 @@ def test_get_login_credentials_returns_username_and_password():
     ):
         username, password = get_login_credentials()
         assert username == "admin"
-        assert password == "mysecretpassword"
+        assert password == "mysecretpassword"  # noqa: S105 - test data
 
 
 def test_get_login_credentials_with_prefilled_username():
@@ -92,7 +92,7 @@ def test_get_login_credentials_with_available_principals():
     ):
         username, password = get_login_credentials(available_principals=principals)
         assert username == "admin@EXAMPLE.COM"
-        assert password == "mysecretpassword"
+        assert password == "mysecretpassword"  # noqa: S105 - test data
         # Verify principals were passed as JSON
         args = mock_run.call_args[0][0]
         import json

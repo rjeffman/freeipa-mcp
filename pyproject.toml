@@ -120,13 +120,7 @@ ignore = [
     "PLW1514", # unspecified-encoding
     "PLW2901", # redefined-loop-name (loop variable overwritten)
     "S101",    # use-of-assert-detected
-    "S105",    # hardcoded-password-string
-    "S106",    # hardcoded-password-func-arg
     "S110",    # try-except-pass
-    "S113",    # request-without-timeout (missing-timeout)
-    "S602",    # shell-injection-subprocess (subprocess with shell=True)
-    "S603",    # subprocess-without-shell-equals-true
-    "S607",    # start-process-with-partial-path
     "SLF001",  # private-member-access (protected-access)
     "TRY003",  # raise-vanilla-args (long messages outside exception class)
     "TRY300",  # try-consider-else

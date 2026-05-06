@@ -44,7 +44,7 @@ def get_vault_password(vault_name: str) -> Optional[str]:
         raise RuntimeError("No display available for password dialog")
 
     # Run GTK password dialog in subprocess
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - trusted script with controlled args
         [sys.executable, str(_PASSWORD_DIALOG_SCRIPT), vault_name],
         capture_output=True,
         text=True,
@@ -90,7 +90,7 @@ def display_vault_data(vault_name: str, data: bytes) -> None:
     # Run GTK dialog in subprocess
     # SECURITY: Pass sensitive data via stdin, NOT command-line arguments
     # (command-line args are visible in process table via ps/proc)
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - trusted script with controlled args
         [sys.executable, str(_DISPLAY_DIALOG_SCRIPT), vault_name],
         input=data,
         capture_output=True,
