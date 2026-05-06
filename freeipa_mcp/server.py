@@ -293,7 +293,7 @@ async def _dispatch_tool(name: str, args: dict) -> str:
             _update_allowed_tools()
             try:
                 await app.request_context.session.send_tool_list_changed()
-            except Exception:
+            except Exception:  # noqa: S110 - notification failure is non-critical
                 pass
             return result + f"\n{count} IPA commands loaded as MCP tools."
         if name == "login":
@@ -319,7 +319,7 @@ async def _dispatch_tool(name: str, args: dict) -> str:
             _update_allowed_tools()
             try:
                 await app.request_context.session.send_tool_list_changed()
-            except Exception:
+            except Exception:  # noqa: S110 - notification failure is non-critical
                 pass
             return (
                 f"Loaded {count} IPA commands as MCP tools.\n"

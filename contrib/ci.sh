@@ -22,7 +22,7 @@ usage() {
     echo "  shellcheck - Check shell scripts with shellcheck"
     echo "  test       - Run tests with coverage report"
     echo "  security   - Run security checks with ruff (exclude tests)"
-    echo "  all        - Run all checks (format, linter, type, shellcheck, test)"
+    echo "  all        - Run all checks (format, linter, type, shellcheck, security, test)"
     exit 1
 }
 
@@ -101,6 +101,9 @@ case "$1" in
         echo ""
 
         check_shellcheck
+        echo ""
+
+        check_security
         echo ""
 
         check_test

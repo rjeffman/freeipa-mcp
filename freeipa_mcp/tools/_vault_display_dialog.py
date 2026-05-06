@@ -136,7 +136,7 @@ def main():
                         error_dialog = Gtk.AlertDialog()
                         error_dialog.set_message(f"Failed to save file: {e}")
                         error_dialog.show(window)
-            except Exception:
+            except Exception:  # noqa: S110 - user cancellation is expected
                 # User cancelled
                 pass
 

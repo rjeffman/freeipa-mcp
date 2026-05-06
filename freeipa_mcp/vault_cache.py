@@ -77,7 +77,7 @@ class KRAConfigCache:
                 self.cache_file.write_text(json.dumps(cache_data, indent=2))
             finally:
                 os.umask(old_umask)
-        except Exception:
+        except Exception:  # noqa: S110 - cache write failure is non-fatal
             # Cache write failure is non-fatal - just log and continue
             pass
 
@@ -85,5 +85,5 @@ class KRAConfigCache:
         """Remove cached configuration."""
         try:
             self.cache_file.unlink(missing_ok=True)
-        except Exception:
+        except Exception:  # noqa: S110 - cache clear failure is non-fatal
             pass
