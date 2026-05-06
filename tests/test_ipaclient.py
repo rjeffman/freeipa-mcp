@@ -268,6 +268,48 @@ def test_make_request_connection_error(mock_auth, mock_server):
     )
 
 
+@patch("freeipa_mcp.ipaclient.HTTPSPNEGOAuth")
+@patch("freeipa_mcp.ipaclient.requests.post")
+def test_make_request_has_timeout(mock_post, mock_auth, mock_server):
+    """Test that JSON-RPC requests include timeout parameter."""
+    from unittest.mock import MagicMock
+
+    # Mock successful response
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"result": {"summary": "OK"}, "error": None}
+    mock_post.return_value = mock_response
+
+    client = IPAThinClient(mock_server)
+    client._make_request("ping")
+
+    # Verify timeout was passed to requests.post
+    assert mock_post.called
+    call_kwargs = mock_post.call_args[1]
+    assert "timeout" in call_kwargs
+    assert call_kwargs["timeout"] == (10, 60)
+
+
+@patch("freeipa_mcp.ipaclient.HTTPSPNEGOAuth")
+@patch("freeipa_mcp.ipaclient.requests.post")
+def test_make_request_timeout_error(mock_post, mock_auth, mock_server):
+    """Test handling of request timeout."""
+    import requests
+
+    # Simulate timeout
+    mock_post.side_effect = requests.exceptions.Timeout("Request timed out")
+
+    client = IPAThinClient(mock_server)
+
+    with pytest.raises(IPAConnectionError) as exc_info:
+        client._make_request("ping")
+
+    assert (
+        "Request failed" in str(exc_info.value)
+        or "timed out" in str(exc_info.value).lower()
+    )
+
+
 # ============================================================================
 # Ping Command Tests
 # ============================================================================

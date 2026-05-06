@@ -385,6 +385,7 @@ class IPAThinClient:
                 headers=headers,
                 auth=HTTPSPNEGOAuth(opportunistic_auth=True),
                 verify=self._verify_ssl,
+                timeout=(10, 60),  # (connect, read) timeouts
             )
         except requests.exceptions.SSLError as e:
             raise IPAConnectionError(
